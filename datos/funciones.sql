@@ -132,6 +132,7 @@ as $$
     'numero', coalesce(o.numero, o.id),
     'destino', o.destino,
     'parte_de', o.parte_de,
+    'desde_panel', o.desde_panel,
     'cobrado', o.cobrado_at,
     'mesa', o.mesa_id,
     'mesa_nombre', m.name,
@@ -608,6 +609,11 @@ begin
   end if;
   -- Igual que en la carta: con «barra y cocina» se divide en dos partes.
   v_partes := privado.crear_partes(s.negocio_id, p_mesa, 1, gen_random_uuid(), p_lineas);
+  -- Marca que lo metió el personal (el resumen del día no lo cuenta como viaje ahorrado; v22).
+  update pedidos_multibar set desde_panel = true
+   where id in (select (x->>'id')::bigint from jsonb_array_elements(v_partes) x);
+  select jsonb_agg(privado.pedido_json((x->>'id')::bigint) order by n) into v_partes
+    from jsonb_array_elements(v_partes) with ordinality as t(x, n);
   return (v_partes->0) || jsonb_build_object('partes', v_partes);
 end $$;
 

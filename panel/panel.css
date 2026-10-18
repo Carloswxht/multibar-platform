@@ -394,3 +394,10 @@ html.sin-scroll, html.sin-scroll body{ overflow:hidden; }
 #oPedir[hidden], #oHecho[hidden]{ display:none; }
 #oHecho .aviso-ok{ margin:0; }
 #fOlvido .btn-borde, #fNueva .btn-borde{ margin-top:4px; }
+
+/* Viajes ahorrados al camarero (v22): lo primero del resumen del día, bien a la vista */
+.stat-viajes{ display:flex; align-items:center; gap:16px; background:var(--orange); color:var(--sobre-acento, var(--navy)); border-radius:12px; padding:16px 18px; margin-bottom:12px; }
+.stat-viajes .sv-num{ font-family:var(--font-titulos); font-size:46px; font-weight:600; line-height:1; letter-spacing:.02em; flex:none; }
+.stat-viajes .sv-txt{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+.stat-viajes .sv-txt b{ font-family:var(--font-titulos); font-size:15px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
+.stat-viajes .sv-txt span{ font-size:12px; line-height:1.35; opacity:.85; }

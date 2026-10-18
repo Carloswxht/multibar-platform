@@ -1099,6 +1099,10 @@ function pintarResumen(){
   // Las 2.ª partes (barra y cocina) no cuentan como otro pedido.
   const nPedidos = hoy.filter(p => !p.parte_de).length;
   $('rPedidos').textContent = nPedidos;
+  // Viajes ahorrados (v22): cada pedido que hace el cliente desde su móvil es una
+  // ida y vuelta a la mesa para tomar nota que el camarero no ha tenido que hacer.
+  // No cuentan los que mete el personal desde el panel ni las 2.ª partes.
+  $('rViajes').textContent = hoy.filter(p => !p.parte_de && !p.desde_panel).length;
   $('rUnidades').textContent = unidades;
   $('rMedio').textContent = euros(nPedidos ? total / nPedidos : 0);
   $('rTotal').textContent = euros(total);
