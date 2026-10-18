@@ -295,6 +295,8 @@ async function verFicha(id){
     try {
       await (pendiente ? datosPlataforma.bienvenida(email) : datosPlataforma.enlaceContrasena(email));
       toast('Correo enviado a ' + email);
+      // Vuelve a leer la ficha: si ya eligió contraseña, deja de salir «pendiente».
+      setTimeout(() => { if(location.hash === '#bar/' + b.id) verFicha(b.id); }, 1500);
     } catch(e) { fallo(e); }
     finally { btn.disabled = false; }
   }));
