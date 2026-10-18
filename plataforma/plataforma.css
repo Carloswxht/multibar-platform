@@ -169,3 +169,10 @@ a{ color:inherit; text-decoration:none; }
 @media (prefers-reduced-motion:reduce){
   *, *::before, *::after{ animation:none !important; transition:none !important; }
 }
+
+/* Ojo para ver la contraseña (v28) */
+.con-ojo{ position:relative; display:block; }
+.con-ojo input{ padding-right:52px; }
+.ojo{ position:absolute; top:0; right:0; bottom:0; width:48px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--text-dim); cursor:pointer; padding:0; }
+.ojo svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.ojo:active{ color:var(--text); }
