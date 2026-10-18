@@ -505,6 +505,11 @@ footer .version{ margin-top:8px; font-size:11px; opacity:.7; letter-spacing:.06e
 footer .firma{ margin-top:2px; font-size:10.5px; opacity:.6; letter-spacing:.04em; }
 footer .firma a{ display:inline-block; padding:6px 8px; color:inherit; text-decoration:none; }
 footer .firma b{ font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+/* v24 (a petición de Carlos): «autonomIA Lab» en el azul del bar, como en el panel.
+   La transparencia pasa solo al «Carta digital por» para no apagar el azul. */
+footer .firma{ opacity:1; }
+footer .firma a{ color:var(--ink-soft); color:color-mix(in srgb, var(--ink-soft) 60%, transparent); }
+footer .firma b{ color:var(--navy); }
 
 /* Enlace al aviso legal y privacidad (v10) */
 footer .legal-enlace{ margin-top:10px; }
