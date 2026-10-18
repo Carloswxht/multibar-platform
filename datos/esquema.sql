@@ -172,6 +172,7 @@ create table multibar.pedidos_multibar (
   received_by   text,                           -- quién lo aceptó
   served_at     timestamptz,
   served_by     text,
+  desde_panel   boolean not null default false, -- lo metió el personal desde el panel (no ahorra viaje al camarero; v22)
   foreign key (negocio_id, mesa_id) references mesas_multibar(negocio_id, id)
 );
 create index pedidos_multibar_status_idx on pedidos_multibar (status, created_at);
