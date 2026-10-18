@@ -547,3 +547,17 @@ html.mb-cargando body{ visibility:hidden; }
 .cart-row > .cr-main:last-child{ flex:1 1 auto; white-space:normal; }
 .cart-row > .cr-main:last-child .cr-name-row{ justify-content:space-between; }
 .cart-row > .cr-price{ min-width:52px; text-align:right; }
+
+/* ---------------- Recomendados y carta por horario (v25) ---------------- */
+/* Etiqueta del producto: Plato del día (color principal), Recomendado (acento), Nuevo (borde) */
+.li-marca{ display:inline-block; flex:none; font-family:var(--font-texto) !important; font-size:9.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; line-height:1; padding:4px 7px; border-radius:999px; margin-right:6px; vertical-align:2px; white-space:nowrap; }
+.li-marca.marca-del_dia{ background:var(--navy); color:var(--sobre-principal, #fff); }
+.li-marca.marca-recomendado{ background:var(--orange); color:var(--sobre-acento, #fff); }
+.li-marca.marca-nuevo{ background:transparent; color:var(--acento-texto, var(--orange)); border:1.5px solid var(--orange); padding:3px 6px; }
+/* Pestaña «Recomendados» delante, con una estrella */
+.cat-tab.tab-recomendados .tab-label::before{ content:"★ "; }
+/* Cuándo se sirve una pestaña; en gris si ahora no */
+.horario-aviso{ font-family:var(--font-texto); font-size:12.5px; line-height:1.4; color:var(--ink-soft); background:var(--fondo-2, rgba(0,0,0,.04)); border-radius:10px; padding:9px 12px; margin:4px 0 10px; }
+.horario-aviso.cerrada{ color:var(--ink); border:1px solid var(--line); }
+.horario-aviso[hidden]{ display:none !important; }
+.cat-tab.fuera .tab-label{ opacity:.45; }

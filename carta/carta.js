@@ -27,8 +27,45 @@ async function loadMenu(){
   MENU.forEach(c => c.items.forEach(it => {
     it.p = Number(it.p);
     it.agotado = !!it.agotado;
+    it.cat = c.id;
+    it.fuera = c.abierta === false;   // carta por horario (v25): ahora no se sirve
     PRODUCTS_BY_ID[String(it.dbId)] = it;
   }));
+}
+
+/* ---------------- RECOMENDADOS Y HORARIOS (v25) ----------------
+   Opciones del bar (ajustes.destacados / ajustes.horarios): la base solo
+   manda la etiqueta de cada producto y el horario de cada pestaña si el bar
+   las tiene encendidas; si no, la carta sale como siempre. */
+const MARCAS = { del_dia: "Plato del día", recomendado: "Recomendado", nuevo: "Nuevo" };
+const ORDEN_MARCAS = ["del_dia", "recomendado", "nuevo"];
+function etiquetaMarca(it){
+  return it.marca && MARCAS[it.marca] ? `<span class="li-marca marca-${esc(it.marca)}">${MARCAS[it.marca]}</span>` : "";
+}
+// No se puede añadir: agotado o fuera de horario.
+function bloqueado(it){ return !!(it && (it.agotado || it.fuera)); }
+const DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+function lista(xs){ return xs.length > 1 ? xs.slice(0, -1).join(", ") + " y " + xs[xs.length - 1] : (xs[0] || ""); }
+// «de 13:00 a 16:00 y de 20:00 a 23:30, de lunes a viernes»
+function textoHorario(h){
+  if(!h || !Array.isArray(h.tramos) || !h.tramos.length) return "";
+  let t = lista(h.tramos.map(x => x.desde === x.hasta ? "todo el día" : "de " + x.desde + " a " + x.hasta));
+  const d = (Array.isArray(h.dias) ? h.dias : []).map(Number).filter(n => n >= 1 && n <= 7).sort();
+  if(d.length && d.length < 7){
+    const seguidos = d.every((n, i) => i === 0 || n === d[i - 1] + 1);
+    t += ", " + (seguidos && d.length > 2 ? "de " + DIAS[d[0] - 1] + " a " + DIAS[d[d.length - 1] - 1] : lista(d.map(n => DIAS[n - 1])));
+  }
+  return t;
+}
+const catInfo = {}; // id de pestaña -> { tab, aviso, horario, abierta }
+function pintarHorario(id){
+  const c = catInfo[id];
+  if(!c || !c.aviso) return;
+  const txt = textoHorario(c.horario);
+  c.aviso.hidden = !txt;
+  c.aviso.classList.toggle("cerrada", !c.abierta);
+  c.aviso.innerHTML = c.abierta ? "Se sirve " + esc(txt) + "." : "<b>Ahora no se sirve.</b> Horario: " + esc(txt) + ".";
+  c.tab.classList.toggle("fuera", !c.abierta);
 }
 
 /* ---------------- EL BAR: NOMBRE, SUBTÍTULO Y PIE ----------------
@@ -103,6 +140,7 @@ function buildLine(it){
     <div class="li-main">
       <div class="li-name-row">
         ${it.pop ? '<span class="li-star">★</span>' : ""}
+        ${etiquetaMarca(it)}
         ${it.lab ? `<span class="li-sublab">${esc(it.lab)}</span>` : `<span class="li-name">${esc(it.dn || it.n)}</span>`}
         ${it.lab ? "" : (it.d ? `<span class="li-sub">${esc(it.d)}</span>` : "")}
         ${it.al ? `<span class="li-allergens">${it.al.map(a => `[${esc(a)}]`).join(" ")}</span>` : ""}
@@ -148,7 +186,7 @@ function buildControl(key, mount, noteRow, noteInput){
   addBtn.className = "bracket-add";
   addBtn.textContent = "+";
   addBtn.addEventListener("click", () => {
-    if(PRODUCTS_BY_ID[key].agotado) return;
+    if(bloqueado(PRODUCTS_BY_ID[key])) return;
     cart[key] = (cart[key]||0) + 1;
     renderControls(key);
   });
@@ -162,7 +200,7 @@ function buildControl(key, mount, noteRow, noteInput){
   });
   const plusBtn = stepper.querySelector(".plus");
   plusBtn.addEventListener("click", () => {
-    if(PRODUCTS_BY_ID[key].agotado || (cart[key]||0) >= MAX_UDS) return;
+    if(bloqueado(PRODUCTS_BY_ID[key]) || (cart[key]||0) >= MAX_UDS) return;
     cart[key] = (cart[key]||0) + 1;
     renderControls(key);
   });
@@ -183,9 +221,10 @@ function renderControls(key){
 // Pinta el + / − / "Agotado" y el precio de un producto (sin recalcular el tique).
 function pintarControles(key){
   const qty = cart[key] || 0;
-  const agotado = !!PRODUCTS_BY_ID[key].agotado;
+  const agotado = bloqueado(PRODUCTS_BY_ID[key]);
   (rowRefs[key] || []).forEach(r => {
     if(r.row) r.row.classList.toggle("agotado", agotado);
+    r.agEl.textContent = PRODUCTS_BY_ID[key].agotado ? "Agotado" : "Fuera de horario";
     if(r.priceEl) r.priceEl.textContent = money(PRODUCTS_BY_ID[key].p);
     r.agEl.style.display = (agotado && qty === 0) ? "inline-block" : "none";
     if(qty > 0){
@@ -209,9 +248,9 @@ const catTabs = document.getElementById("catTabs");
 const catTabButtons = [];
 const catPanels = [];
 
-function addCategory(id, name, buildItems){
+function addCategory(id, name, buildItems, sec){
   const tab = document.createElement("button");
-  tab.className = "cat-tab";
+  tab.className = "cat-tab" + (id === "_recomendados" ? " tab-recomendados" : "");
   tab.innerHTML = `<span class="tab-label">${esc(name)}</span><span class="tab-badge"></span>`;
   catTabs.appendChild(tab);
   catTabButtons.push(tab);
@@ -229,7 +268,14 @@ function addCategory(id, name, buildItems){
   note.innerHTML = "<b>Alérgenos:</b> [G] Gluten · [L] Lácteos · [H] Huevo · [F] Frutos secos · [Su] Sulfitos";
   panel.appendChild(note);
   head.querySelector(".al-info").addEventListener("click", () => note.classList.toggle("open"));
+  // Carta por horario (v25): cuándo se sirve esta pestaña.
+  const avisoHorario = document.createElement("div");
+  avisoHorario.className = "horario-aviso";
+  avisoHorario.hidden = true;
+  panel.appendChild(avisoHorario);
+  if(sec){ catInfo[id] = { tab, aviso: avisoHorario, horario: sec.horario || null, abierta: sec.abierta !== false }; }
   buildItems(panel);
+  if(sec) pintarHorario(id);
   const n = panel.querySelectorAll(".line-item").length;
   head.querySelector(".cat-count").textContent = n === 1 ? "1 producto" : n + " productos";
   if(!panel.querySelector(".li-allergens")) head.style.display = "none";
@@ -248,6 +294,15 @@ function addCategory(id, name, buildItems){
 }
 
 function renderCategories(){
+  // Recomendados (v25): los productos con etiqueta, en su propia pestaña delante.
+  const marcados = [];
+  MENU.forEach(sec => sec.items.forEach(it => { if(it.marca && MARCAS[it.marca]) marcados.push(it); }));
+  if(marcados.length){
+    marcados.sort((a, b) => ORDEN_MARCAS.indexOf(a.marca) - ORDEN_MARCAS.indexOf(b.marca));
+    addCategory("_recomendados", "RECOMENDADOS", (wrap) => {
+      marcados.forEach(it => wrap.appendChild(buildLine(Object.assign({}, it, { dn: it.n }))));
+    });
+  }
   MENU.forEach(sec => {
     addCategory(sec.id, sec.name, (wrap) => {
       let last = null;
@@ -271,7 +326,7 @@ function renderCategories(){
         }
         i = j;
       }
-    });
+    }, sec);
   });
 
   catTabButtons[0].classList.add("active");
@@ -587,19 +642,26 @@ async function refrescarCarta(){
     if(!Array.isArray(menu) || !menu.length) return;
     ultimaCarta = Date.now();
     MENU_DE_BASE = true;
-    const quitados = [];
-    menu.forEach(c => (c.items || []).forEach(n => {
-      const key = String(n.dbId);
-      const it = PRODUCTS_BY_ID[key];
-      if(!it) return;
-      it.p = Number(n.p);
-      it.agotado = !!n.agotado;
-      if(it.agotado && cart[key]){ delete cart[key]; delete notes[key]; quitados.push(it.n); }
-      pintarControles(key);
-    }));
+    const quitados = [], fueraHora = [];
+    menu.forEach(c => {
+      if(catInfo[c.id]){ catInfo[c.id].horario = c.horario || null; catInfo[c.id].abierta = c.abierta !== false; pintarHorario(c.id); }
+      (c.items || []).forEach(n => {
+        const key = String(n.dbId);
+        const it = PRODUCTS_BY_ID[key];
+        if(!it) return;
+        it.p = Number(n.p);
+        it.agotado = !!n.agotado;
+        it.fuera = c.abierta === false;
+        if(it.agotado && cart[key]){ delete cart[key]; delete notes[key]; quitados.push(it.n); }
+        else if(it.fuera && cart[key]){ delete cart[key]; delete notes[key]; fueraHora.push(it.n); }
+        pintarControles(key);
+      });
+    });
     updateCartBar();
     if(quitados.length){
       aviso("SE HA AGOTADO", "Lo sentimos, se ha agotado: " + quitados.join(", ") + ". Lo hemos quitado de tu pedido.");
+    } else if(fueraHora.length){
+      aviso("FUERA DE HORARIO", "A esta hora ya no se sirve: " + fueraHora.join(", ") + ". Lo hemos quitado de tu pedido.");
     }
   } catch(e) {
     // sin conexión: se queda la carta que había
@@ -699,7 +761,7 @@ async function sendOrder(){
     aviso("PEDIDO ENVIADO", "Pedido " + p.ronda + " enviado (" + MESA.nombre + "). Durante 3 minutos puedes cambiarlo desde «Ver tique».", true);
     return;
   }
-  if(fallo.codigo === 'AGOTADO'){ ultimaCarta = 0; await refrescarCarta(); }
+  if(fallo.codigo === 'AGOTADO' || fallo.codigo === 'FUERA_DE_HORARIO'){ ultimaCarta = 0; await refrescarCarta(); }
   if(fallo.codigo === 'MESA_NO_VALIDA') desactivarPedidos();
   if(fallo.codigo === 'MESA_CERRADA'){ MESA.cerrada = true; pintarMesa(); updateCartBar(); aviso("MESA CERRADA", fallo.message); return; }
   updateCartBar();

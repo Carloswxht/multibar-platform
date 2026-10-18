@@ -109,6 +109,10 @@ function textoError(codigo){
     SIN_PEDIDOS: 'Todavía no hay ningún pedido en esta mesa: no hay cuenta que pedir.',
     NADA_QUE_COBRAR: 'No hay nada servido que cobrar en esta mesa (o ya se ha cobrado).',
     YA_COBRADO: 'Este pedido ya está cobrado. Para cambiarlo, reabre antes su cuenta en «Cuentas de mesas».',
+    FUERA_DE_HORARIO: 'Algo de tu pedido no se sirve a esta hora. Mira el horario en la carta.',
+    HORARIO_NO_VALIDO: 'Revisa el horario: las horas van como 13:00 y hay que marcar al menos un día.',
+    CATEGORIA_NO_VALIDA: 'No se encuentra esa sección de la carta. Recarga la página.',
+    MARCA_NO_VALIDA: 'Esa etiqueta no existe.',
   };
   return textos[base] || ('Algo ha fallado (' + c + '). Inténtalo otra vez.');
 }
@@ -263,7 +267,12 @@ const datosPanel = {
   abrirMesa: (mesa, abrir) => rpcPersonal('panel_abrir_mesa_multibar', { p_mesa: Number(mesa), p_abrir: !!abrir }),
   productos: () => rpcPersonal('panel_productos_multibar'),
   disponible: (productoId, disponible) => rpcPersonal('panel_disponible_multibar', { p_producto: productoId, p_disponible: !!disponible }),
+  // Recomendados (v25): 'recomendado' | 'del_dia' | 'nuevo' | '' (quitar).
+  marca: (productoId, marca) => rpcPersonal('panel_marca_producto_multibar', { p_producto: productoId, p_marca: marca || '' }),
   // Solo admin:
+  // Carta por horario (v25): pestañas con su horario, y guardar el de una.
+  horarios: () => rpcPersonal('admin_horarios_multibar'),
+  guardarHorario: (categoria, horario) => rpcPersonal('admin_guardar_horario_multibar', { p_categoria: categoria, p_horario: horario }),
   guardarProducto: (datos) => rpcPersonal('admin_guardar_producto_multibar', { p_datos: datos }),
   usuarios: () => rpcPersonal('admin_usuarios_multibar'),
   guardarUsuario: (datos) => rpcPersonal('admin_guardar_usuario_multibar', { p_datos: datos }),
