@@ -429,3 +429,14 @@ html.sin-scroll, html.sin-scroll body{ overflow:hidden; }
 .fila-tramo{ display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13.5px; color:var(--navy); }
 .fila-tramo > span:first-child{ width:74px; font-weight:700; }
 .fila-tramo input{ flex:1; min-width:0; min-height:44px; border:1.5px solid var(--linea); border-radius:10px; padding:0 8px; font:inherit; font-size:15px; background:#fff; color:var(--navy); }
+
+/* ---------------- Fotos de los productos (v26) ---------------- */
+.foto-producto{ margin-top:6px; }
+.foto-fila{ display:flex; gap:14px; align-items:center; }
+.foto-previa{ flex:none; width:96px; height:96px; border-radius:12px; overflow:hidden; background:var(--fondo-2); border:1px solid var(--linea); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:var(--suave); }
+.foto-previa img{ width:100%; height:100%; object-fit:cover; display:block; }
+.foto-botones{ display:flex; flex-direction:column; gap:8px; flex:1; min-width:0; }
+.foto-botones .btn{ min-height:44px; font-size:14px; width:100%; }
+.foto-elegir{ display:flex; align-items:center; justify-content:center; cursor:pointer; }
+.foto-elegir.desactivado{ opacity:.5; pointer-events:none; }
+.foto-estado{ display:block; margin-top:8px; font-weight:400; color:var(--suave); }

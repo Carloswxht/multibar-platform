@@ -561,3 +561,27 @@ html.mb-cargando body{ visibility:hidden; }
 .horario-aviso.cerrada{ color:var(--ink); border:1px solid var(--line); }
 .horario-aviso[hidden]{ display:none !important; }
 .cat-tab.fuera .tab-label{ opacity:.45; }
+
+/* ---------------- Fotos de los productos (v26) ---------------- */
+/* Miniatura cuadrada a la izquierda, solo en los productos con foto */
+.li-foto{ flex:none; width:64px; height:64px; padding:0; border:0; border-radius:12px; overflow:hidden; background:var(--fondo-2, #f1f1f1); cursor:pointer; align-self:center; }
+.li-foto img{ width:100%; height:100%; object-fit:cover; display:block; }
+.line-item > .li-foto{ margin-right:2px; }
+.vgroup > .vhead.con-foto{ display:grid; grid-template-columns:64px 1fr; column-gap:14px; align-items:center; }
+.vgroup > .vhead.con-foto .li-foto{ grid-row:1 / span 2; }
+/* Ventana con la foto en grande */
+.ficha-foto{ position:fixed; inset:0; z-index:210; background:rgba(10,10,10,.72); display:flex; align-items:flex-end; justify-content:center; }
+.ficha-foto[hidden]{ display:none !important; }
+.ff-caja{ position:relative; width:100%; max-width:480px; max-height:92vh; overflow:auto; background:var(--paper, #fff); border-radius:20px 20px 0 0; padding-bottom:max(18px, env(safe-area-inset-bottom)); }
+.ff-img{ display:block; width:100%; aspect-ratio:1 / 1; max-height:52vh; object-fit:cover; background:var(--fondo-2, #f1f1f1); }
+.ff-cerrar{ position:absolute; top:12px; right:12px; width:40px; height:40px; border-radius:50%; border:0; background:rgba(255,255,255,.92); color:#111; font-size:18px; line-height:1; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+.ff-texto{ padding:16px 20px 4px; }
+.ff-nombre{ font-family:var(--font-titulos); font-size:22px; font-weight:600; color:var(--ink); line-height:1.2; }
+.ff-desc{ font-family:var(--font-texto); font-size:13.5px; color:var(--ink-soft); margin-top:4px; }
+.ff-fila{ display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); font-family:var(--font-texto); }
+.ff-fila:last-child{ border-bottom:0; }
+.ff-tam{ flex:1; font-size:14px; font-weight:600; color:var(--ink); }
+.ff-precio{ font-size:15px; font-weight:700; color:var(--ink); }
+.ff-anadir{ flex:none; min-width:112px; min-height:44px; border:0; border-radius:12px; background:var(--orange); color:var(--sobre-acento, #fff); font-family:var(--font-texto); font-size:14px; font-weight:700; cursor:pointer; }
+.ff-anadir.hecho{ background:var(--navy); color:var(--sobre-principal, #fff); }
+.ff-anadir:disabled{ opacity:.5; cursor:default; }
