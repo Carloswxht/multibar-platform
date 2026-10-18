@@ -534,3 +534,11 @@ html.mb-cargando body{ visibility:hidden; }
 .panel-foot .llamar-tique{ display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:10px; padding:13px; background:transparent; color:var(--navy); border:1.5px solid var(--navy); border-radius:12px; font-family:var(--font-texto) !important; font-size:13px; font-weight:700; letter-spacing:.1em; cursor:pointer; }
 .panel-foot .llamar-tique:active{ background:rgba(0,0,0,.06); }
 .panel-foot .llamar-tique[hidden]{ display:none !important; }
+
+/* Tique (v21): el precio siempre al final del renglón, alineado a la derecha.
+   Sin − / + la parte del nombre ocupa todo el ancho (antes, al ser el último
+   hijo, se quedaba estrecha y el precio salía pegado al nombre); con − / + el
+   precio se pone después de los botones (carta.js). */
+.cart-row > .cr-main:last-child{ flex:1 1 auto; white-space:normal; }
+.cart-row > .cr-main:last-child .cr-name-row{ justify-content:space-between; }
+.cart-row > .cr-price{ min-width:52px; text-align:right; }

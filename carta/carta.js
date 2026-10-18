@@ -495,6 +495,8 @@ function buildCartRow(l, mode, round){
     stepper.querySelector(".minus").addEventListener("click", () => adjustSentItem(round, l, -1));
     plusBtn.addEventListener("click", () => adjustSentItem(round, l, 1));
     row.appendChild(stepper);
+    // El precio, al final del renglón también en las líneas con − / + (v21)
+    row.appendChild(row.querySelector(".cr-price"));
   }
   return row;
 }
