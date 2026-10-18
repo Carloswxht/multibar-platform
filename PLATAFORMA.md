@@ -1,6 +1,6 @@
 # PLATAFORMA · las bases de todo el plan de autonomIA Lab
 
-> **Versión de las bases: 3 (17 oct 2026).** Al empezar una sesión, comparar este número con la copia maestra (`Carloswxht/autonomialab`, archivo `PLATAFORMA.md`); si la de aquí es más antigua, avisar a Carlos y copiar la maestra antes de trabajar. Cada cambio en este archivo sube el número.
+> **Versión de las bases: 4 (18 oct 2026).** Al empezar una sesión, comparar este número con la copia maestra (`Carloswxht/autonomialab`, archivo `PLATAFORMA.md`); si la de aquí es más antigua, avisar a Carlos y copiar la maestra antes de trabajar. Cada cambio en este archivo sube el número.
 >
 > **Archivo común a todos los repositorios de autonomIA Lab.** Es idéntico en cada uno (`autonomialab`, `multibar-platform` y los que vengan). La **copia maestra** está en el repositorio `autonomialab`. Si cambias algo aquí, cópialo igual en todos los repositorios y avisa a Carlos. Lo propio de cada producto va en el `CLAUDE.md` de su repositorio, no aquí.
 
@@ -40,6 +40,15 @@
 - **Regla de nombres (Carlos, 17 oct):** todo lo propio de un producto (tablas, funciones, roles…) lleva **el nombre del producto al final**, con guion bajo (la base no admite «-»): `ejercicios_gimnasio`, `pedidos_multibar`, `ver_carta_multibar`. Así nunca hay dos cosas iguales aunque dos productos tengan «ejercicios» o «pedidos». Lo común lleva `_comun` y lo de la empresa `_autonomialab`. Lo nuevo nace así; lo que ya existe en MultiBar se renombra en el paso 2 (se añade el nombre nuevo, la web pasa a usarlo y luego se retira el viejo, sin que La Mar de Gambas note nada).
 - Un nombre de carpeta, un subdominio y un sufijo **no se repiten nunca**. Los nombres de producto en minúsculas y sin espacios (`multibar`, `gimnasio`…).
 - **Pensado para crecer:** cada producto es independiente (su repositorio, su sesión, su carpeta, su diseño); lo único compartido es `comun` (negocios, personas, login) y este archivo. **Cada cuenta de usuario pertenece a un único negocio** (un bar, un gimnasio…) y solo entra en ese negocio y en su producto (decisión de Carlos, 17 oct: alguien de un bar nunca puede entrar en otro bar ni en un gimnasio); quien trabaje en dos sitios tiene dos cuentas, con correos distintos. Cada repositorio solo puede ver `comun` y su propia carpeta. Si un producto crece mucho (carga o tamaño), su carpeta se puede sacar entera a otra base sin tocar a los demás: por eso nunca se cruzan tablas entre carpetas de productos.
+
+## Tres niveles: SaaS, gremio y cliente (decidido por Carlos, 18 oct)
+- **autonomIA Lab es la SaaS**; cada repositorio es un **gremio** (MultiBar = bares, gimnasio = gimnasios…) y dentro de cada gremio hay **muchos clientes** (cada bar, cada gimnasio).
+- **Notas en tres niveles:**
+  1. **SaaS** → este `PLATAFORMA.md`, idéntico en todos los repositorios.
+  2. **Gremio** → el `CLAUDE.md` de cada repositorio: empieza con `@PLATAFORMA.md` (no es una copia: lo carga) y añade solo lo común a ese gremio (cómo funciona la app, diseño, roles, opciones).
+  3. **Cliente** → una carpeta por cliente dentro del repositorio del gremio (en MultiBar: `datos/bares/SLUG/`): su ficha `NOTAS.md` (qué pidió, pendientes, datos del local), su logo y fotos, y una copia de reserva de su configuración y catálogo.
+- **Regla de oro: nunca código propio de un cliente.** Lo que hace única a una empresa son sus **ajustes guardados en la base** (colores, logo, textos, plantilla, opciones encendidas). Si un cliente pide algo nuevo, se programa una vez para todo el gremio como opción apagada por defecto y se enciende solo para él. Así un arreglo sirve a todos los clientes del gremio a la vez.
+- **La base tiene la misma forma:** `comun` = la SaaS; una carpeta por gremio (`multibar`, `gimnasio`…); cada cliente = sus filas dentro de la carpeta de su gremio, marcadas con su número de negocio.
 
 ## Alta de un producto nuevo (siempre estos pasos, con el «sí» de Carlos)
 1. Elegir con Carlos el nombre del producto, de la carpeta, del subdominio y del prefijo; comprobar en el registro que no existen.
