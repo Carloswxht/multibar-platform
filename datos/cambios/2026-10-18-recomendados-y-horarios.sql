@@ -38,19 +38,6 @@ as $$
   select jsonb_typeof(p_h->'dias') is distinct from 'array' or jsonb_array_length(p_h->'dias') = 0
       or (p_h->'dias') @> to_jsonb(p_dia)
 $$;
-
--- Carta por horario (v25): ¿está abierta ahora una pestaña con este horario,
--- según la hora del bar? Sin horario = siempre. Días ISO (1 = lunes … 7 =
--- domingo); sin días = todos. Un tramo que acaba antes de empezar cruza la
--- medianoche (20:00–01:00) y cuenta por el día en que empieza.
-create or replace function privado.dia_en(p_h jsonb, p_dia int)
-returns boolean
-language sql immutable
-set search_path = public, comun, multibar, privado, pg_temp
-as $$
-  select jsonb_typeof(p_h->'dias') is distinct from 'array' or jsonb_array_length(p_h->'dias') = 0
-      or (p_h->'dias') @> to_jsonb(p_dia)
-$$;
 create or replace function privado.horario_abierto(p_h jsonb, p_zona text, p_t timestamptz default now())
 returns boolean
 language sql stable
