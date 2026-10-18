@@ -115,6 +115,11 @@ function textoError(codigo){
     MARCA_NO_VALIDA: 'Esa etiqueta no existe.',
     FOTO_NO_VALIDA: 'Esa foto no se ha podido usar. Prueba con otra.',
     ERROR_SERVIDOR: 'Algo ha fallado en el servidor. Inténtalo otra vez en un momento.',
+    SLUG_NO_VALIDO: 'La dirección corta solo puede llevar letras minúsculas sin acentos, números y guiones (de 2 a 40), y no puede ser una palabra reservada.',
+    SLUG_EN_USO: 'Ya hay un bar con esa dirección corta. Elige otra.',
+    MESAS_NO_VALIDAS: 'El número de mesas tiene que estar entre 1 y 200.',
+    EMAIL_NO_VALIDO: 'Ese correo no parece válido.',
+    OPCION_NO_VALIDA: 'Esa opción no es válida.',
   };
   return textos[base] || ('Algo ha fallado (' + c + '). Inténtalo otra vez.');
 }
@@ -213,14 +218,14 @@ async function cambiarPassword(actual, nueva){
 
 /* Recuperar la contraseña por correo (v18). El servidor contesta siempre
    lo mismo, exista o no el correo, para no desvelar quién trabaja dónde. */
-async function pedirEnlaceRecuperar(email){
+async function pedirEnlaceRecuperar(email, bienvenida){
   const corte = window.AbortController ? new AbortController() : null;
   const reloj = corte ? setTimeout(() => corte.abort(), 20000) : null;
   let r;
   try {
     r = await fetch(FUNCIONES_API + '/recuperar-contrasena', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-      body: JSON.stringify({ email: String(email || '').trim() }),
+      body: JSON.stringify(bienvenida ? { email: String(email || '').trim(), bienvenida: true } : { email: String(email || '').trim() }),
       signal: corte ? corte.signal : undefined,
     });
   } catch(e) {
@@ -307,4 +312,46 @@ const datosPanel = {
   guardarUsuario: (datos) => rpcPersonal('admin_guardar_usuario_multibar', { p_datos: datos }),
   mesas: () => rpcPersonal('admin_mesas_multibar'),
   guardarMesa: (datos) => rpcPersonal('admin_guardar_mesa_multibar', { p_datos: datos }),
+};
+
+/* =====================================================================
+   PLATAFORMA (v27): el panel de autonomIA Lab para administrar MultiBar
+   (/plataforma/). Su sesión va aparte de la del panel de un bar (otra
+   clave), así un mismo móvil puede tener las dos abiertas.
+   ===================================================================== */
+const CLAVE_PLATAFORMA = 'mb.plataforma';
+function getSesionPlataforma(){ return leerLocal(CLAVE_PLATAFORMA); }
+async function rpcPlataforma(nombre, params){
+  const s = getSesionPlataforma();
+  try {
+    return await apiRpc(nombre, Object.assign({ p_token: s ? s.token : null }, params || {}));
+  } catch(e) {
+    if(e.codigo === 'SESION_CADUCADA') guardarLocal(CLAVE_PLATAFORMA, null);
+    throw e;
+  }
+}
+const datosPlataforma = {
+  sesion: getSesionPlataforma,
+  async entrar(email, password){
+    const r = await apiRpc('plataforma_entrar', { p_email: email, p_password: password });
+    if(!r || r.error) throw new ErrorDatos((r && r.error) || 'CREDENCIALES');
+    const s = { token: r.token, nombre: r.nombre, email: r.email };
+    guardarLocal(CLAVE_PLATAFORMA, s);
+    return s;
+  },
+  async salir(){
+    const s = getSesionPlataforma();
+    guardarLocal(CLAVE_PLATAFORMA, null);
+    if(s){ try { await apiRpc('personal_salir', { p_token: s.token }); } catch(e) { /* ya está fuera */ } }
+  },
+  yo: () => rpcPlataforma('plataforma_yo'),
+  bares: () => rpcPlataforma('plataforma_bares_multibar'),
+  bar: (id) => rpcPlataforma('plataforma_bar_multibar', { p_bar: Number(id) }),
+  opciones: (id, opciones) => rpcPlataforma('plataforma_opciones_multibar', { p_bar: Number(id), p_opciones: opciones }),
+  estado: (id, activo) => rpcPlataforma('plataforma_estado_bar_multibar', { p_bar: Number(id), p_activo: !!activo }),
+  alta: (datos) => rpcPlataforma('plataforma_alta_bar_multibar', { p_datos: datos }),
+  // Correos (los manda el servidor; contesta siempre igual):
+  enlaceContrasena: (email) => pedirEnlaceRecuperar(email),
+  bienvenida: (email) => pedirEnlaceRecuperar(email, true),
+  restablecer: (token, nueva) => restablecerPassword(token, nueva),
 };
