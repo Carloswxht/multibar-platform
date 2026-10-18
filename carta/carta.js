@@ -42,6 +42,26 @@ const ORDEN_MARCAS = ["del_dia", "recomendado", "nuevo"];
 function etiquetaMarca(it){
   return it.marca && MARCAS[it.marca] ? `<span class="li-marca marca-${esc(it.marca)}">${MARCAS[it.marca]}</span>` : "";
 }
+/* ---------------- CARTA MÁS FÁCIL (v30) ----------------
+   Seis opciones del bar (ajustes), apagadas por defecto: otra_ronda,
+   alergenos, mas_pedidos, carta_hora, bienvenida y raciones. Con ellas
+   apagadas la carta sale como siempre (la base tampoco manda al / rac / top). */
+function opcion(k){ return !!(BAR_INFO && BAR_INFO.ajustes && BAR_INFO.ajustes[k] === true); }
+// Los 14 alérgenos de la normativa europea (código en la base → icono y nombre).
+const ALERGENOS = {
+  gluten: ["🌾", "Gluten"], crustaceos: ["🦐", "Crustáceos"], huevo: ["🥚", "Huevo"], pescado: ["🐟", "Pescado"],
+  cacahuetes: ["🥜", "Cacahuetes"], soja: ["🌱", "Soja"], lacteos: ["🥛", "Lácteos"], frutos_cascara: ["🌰", "Frutos de cáscara"],
+  apio: ["🥬", "Apio"], mostaza: ["🟡", "Mostaza"], sesamo: ["⚪", "Sésamo"], sulfitos: ["🍷", "Sulfitos"],
+  altramuces: ["🌼", "Altramuces"], moluscos: ["🦪", "Moluscos"],
+};
+function alergenosDe(it){ return Array.isArray(it.al) ? it.al.filter(a => ALERGENOS[a]) : []; }
+function iconosAlergenos(it){
+  const al = alergenosDe(it);
+  return al.length ? `<span class="li-al" aria-label="Alérgenos: ${al.map(a => ALERGENOS[a][1]).join(", ")}">${al.map(a => `<i title="${ALERGENOS[a][1]}">${ALERGENOS[a][0]}</i>`).join("")}</span>` : "";
+}
+// Alergias que ha marcado este móvil (se recuerdan): los platos que las llevan salen avisados.
+let ALERGIAS = (function(){ try { const a = leerLocal("carta.alergias"); return Array.isArray(a) ? a.filter(x => ALERGENOS[x]) : []; } catch(e) { return []; } })();
+
 // No se puede añadir: agotado o fuera de horario.
 function bloqueado(it){ return !!(it && (it.agotado || it.fuera)); }
 const DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
@@ -147,6 +167,7 @@ function buildLine(it){
   row.className = "line-item";
   row.dataset.name = it.n.toLowerCase();
   row.dataset.key = key;
+  if(alergenosDe(it).length) row.dataset.al = alergenosDe(it).join(" ");
   row.innerHTML = `
     ${it.img && !it.lab ? `<button type="button" class="li-foto" aria-label="Ver foto: ${esc(it.dn || it.n)}"><img src="${esc(it.img)}" alt="" loading="lazy" decoding="async"></button>` : ""}
     <div class="li-main">
@@ -155,9 +176,11 @@ function buildLine(it){
         ${etiquetaMarca(it)}
         ${it.lab ? `<span class="li-sublab">${esc(it.lab)}</span>` : `<span class="li-name">${esc(it.dn || it.n)}</span>`}
         ${it.lab ? "" : (it.d ? `<span class="li-sub">${esc(it.d)}</span>` : "")}
-        ${it.al ? `<span class="li-allergens">${it.al.map(a => `[${esc(a)}]`).join(" ")}</span>` : ""}
+        ${iconosAlergenos(it)}
       </div>
       <div class="li-pricerow"><span class="li-price">${money(it.p)}</span></div>
+      ${it.rac ? `<div class="li-racion">${esc(it.rac)}</div>` : ""}
+      <div class="li-alergia" hidden></div>
     </div>
     <span class="li-connector"></span>
     <span class="li-ctrl"></span>
@@ -254,7 +277,7 @@ const catPanels = [];
 
 function addCategory(id, name, buildItems, sec){
   const tab = document.createElement("button");
-  tab.className = "cat-tab" + (id === "_recomendados" ? " tab-recomendados" : "");
+  tab.className = "cat-tab" + (id === "_recomendados" || id === "_lomejor" ? " tab-recomendados" : "");
   tab.innerHTML = `<span class="tab-label">${esc(name)}</span><span class="tab-badge"></span>`;
   catTabs.appendChild(tab);
   catTabButtons.push(tab);
@@ -272,6 +295,13 @@ function addCategory(id, name, buildItems, sec){
   note.innerHTML = "<b>Alérgenos:</b> [G] Gluten · [L] Lácteos · [H] Huevo · [F] Frutos secos · [Su] Sulfitos";
   panel.appendChild(note);
   head.querySelector(".al-info").addEventListener("click", () => note.classList.toggle("open"));
+  // Alérgenos (v30): franja para marcar las alergias de quien pide.
+  if(opcion("alergenos")){
+    const fa = document.createElement("button");
+    fa.type = "button"; fa.className = "alergia-franja";
+    fa.addEventListener("click", abrirAlergias);
+    panel.appendChild(fa);
+  }
   // Carta por horario (v25): cuándo se sirve esta pestaña.
   const avisoHorario = document.createElement("div");
   avisoHorario.className = "horario-aviso";
@@ -301,13 +331,31 @@ function renderCategories(){
   // Recomendados (v25): los productos con etiqueta, en su propia pestaña delante.
   const marcados = [];
   MENU.forEach(sec => sec.items.forEach(it => { if(it.marca && MARCAS[it.marca]) marcados.push(it); }));
-  if(marcados.length){
-    marcados.sort((a, b) => ORDEN_MARCAS.indexOf(a.marca) - ORDEN_MARCAS.indexOf(b.marca));
+  // Lo mejor (v30, opción mas_pedidos): lo más pedido en el bar y los
+  // recomendados, juntos en la primera pestaña. Solo con 3 o más productos.
+  const masPedidos = [];
+  if(opcion("mas_pedidos")) MENU.forEach(sec => sec.items.forEach(it => { if(it.top) masPedidos.push(it); }));
+  masPedidos.sort((a, b) => a.top - b.top);
+  const conPortada = masPedidos.length >= 3;
+  if(marcados.length) marcados.sort((a, b) => ORDEN_MARCAS.indexOf(a.marca) - ORDEN_MARCAS.indexOf(b.marca));
+  if(conPortada){
+    addCategory("_lomejor", "LO MEJOR", (wrap) => {
+      const cap = (t) => { const c = document.createElement("div"); c.className = "sec-cap"; c.textContent = t; wrap.appendChild(c); };
+      cap("Lo más pedido");
+      masPedidos.forEach(it => wrap.appendChild(buildLine(Object.assign({}, it, { dn: it.n }))));
+      if(marcados.length){
+        cap("Recomendados");
+        marcados.forEach(it => wrap.appendChild(buildLine(Object.assign({}, it, { dn: it.n }))));
+      }
+    });
+  } else if(marcados.length){
     addCategory("_recomendados", "RECOMENDADOS", (wrap) => {
       marcados.forEach(it => wrap.appendChild(buildLine(Object.assign({}, it, { dn: it.n }))));
     });
   }
-  MENU.forEach(sec => {
+  // Carta según la hora (v30, opción carta_hora): primero lo que se sirve ahora.
+  const secciones = opcion("carta_hora") ? MENU.filter(c => c.abierta !== false).concat(MENU.filter(c => c.abierta === false)) : MENU;
+  secciones.forEach(sec => {
     addCategory(sec.id, sec.name, (wrap) => {
       let last = null;
       const its = sec.items;
@@ -345,7 +393,58 @@ function renderCategories(){
 
   catTabButtons[0].classList.add("active");
   catPanels[0].classList.add("active");
+  pintarAlergias();
 }
+
+/* ---------------- ALERGIAS (v30, opción alergenos) ----------------
+   Quien pide marca sus alergias y los platos que las llevan salen avisados
+   en rojo (no se esconden). Solo se marca lo que ha indicado el bar. */
+function pintarAlergias(){
+  if(!opcion("alergenos")) return;
+  const nombres = ALERGIAS.map(a => ALERGENOS[a][1].toLowerCase());
+  document.querySelectorAll(".alergia-franja").forEach(b => {
+    b.classList.toggle("activa", ALERGIAS.length > 0);
+    b.innerHTML = ALERGIAS.length
+      ? `<b>⚠ Sin ${esc(lista(nombres))}</b><span>Cambiar</span>`
+      : `<b>⚠ ¿Alergias?</b><span>Márcalas y te avisamos en cada plato</span>`;
+  });
+  document.querySelectorAll(".line-item").forEach(row => {
+    const al = (row.dataset.al || "").split(" ").filter(Boolean);
+    const lleva = al.filter(a => ALERGIAS.includes(a));
+    row.classList.toggle("con-alergia", lleva.length > 0);
+    const av = row.querySelector(".li-alergia");
+    if(av){ av.hidden = !lleva.length; av.textContent = lleva.length ? "Lleva " + lista(lleva.map(a => ALERGENOS[a][1].toLowerCase())) : ""; }
+  });
+}
+const alergiasEl = document.createElement("div");
+alergiasEl.className = "ficha-foto alergias";
+alergiasEl.hidden = true;
+alergiasEl.setAttribute("role", "dialog");
+alergiasEl.setAttribute("aria-modal", "true");
+document.body.appendChild(alergiasEl);
+function abrirAlergias(){
+  alergiasEl.innerHTML = `<div class="ff-caja al-caja">
+      <button type="button" class="ff-cerrar" aria-label="Cerrar">✕</button>
+      <div class="ff-texto">
+        <div class="ff-nombre">¿A qué tienes alergia?</div>
+        <div class="ff-desc">Marca lo que no puedes tomar y te avisamos en cada plato que lo lleve.</div>
+        <div class="al-lista">${Object.keys(ALERGENOS).map(a => `<button type="button" class="al-op${ALERGIAS.includes(a) ? " sel" : ""}" data-al="${a}"><i>${ALERGENOS[a][0]}</i>${ALERGENOS[a][1]}</button>`).join("")}</div>
+        <p class="al-aviso">Información del bar. Si tu alergia es grave, díselo también al camarero.</p>
+        <button type="button" class="ff-anadir al-listo">Listo</button>
+      </div>
+    </div>`;
+  alergiasEl.hidden = false;
+}
+alergiasEl.addEventListener("click", ev => {
+  const op = ev.target.closest(".al-op");
+  if(op){ op.classList.toggle("sel"); return; }
+  if(ev.target === alergiasEl || ev.target.closest(".ff-cerrar") || ev.target.closest(".al-listo")){
+    ALERGIAS = Array.from(alergiasEl.querySelectorAll(".al-op.sel")).map(b => b.dataset.al);
+    try { guardarLocal("carta.alergias", ALERGIAS); } catch(e) {}
+    alergiasEl.hidden = true; alergiasEl.innerHTML = "";
+    pintarAlergias();
+  }
+});
 
 /* ---------------- CART SUMMARY ---------------- */
 function cartLines(){
@@ -444,6 +543,40 @@ const bottomSendBtn = document.getElementById("bottomSendBtn");
 const sendBtn = document.getElementById("sendBtn");
 let enviando = false;
 
+/* Otra ronda (v30, opción otra_ronda): repetir el último pedido de este
+   móvil con un toque. Se añade al tique (no se envía solo) para que se pueda
+   cambiar; lo agotado o fuera de horario no se añade. */
+function ultimoPedido(){
+  if(!MESA || !opcion("otra_ronda")) return null;
+  const pedidos = pedidosDelTique(rounds);
+  const g = pedidos[pedidos.length - 1];
+  if(!g) return null;
+  const lineas = [];
+  g.partes.forEach(r => r.lines.forEach(l => {
+    if(l.qty <= 0 || !PRODUCTS_BY_ID[l.key]) return;
+    const x = lineas.find(y => y.key === l.key);
+    if(x) x.qty += l.qty; else lineas.push({ key: l.key, qty: l.qty, name: PRODUCTS_BY_ID[l.key].n });
+  }));
+  return lineas.length ? { num: g.num, lineas } : null;
+}
+function resumenPedido(u){
+  const t = u.lineas.map(l => l.qty + " × " + l.name).join(", ");
+  return t.length > 42 ? t.slice(0, 40).replace(/[ ,×]+$/, "") + "…" : t;
+}
+function repetirPedido(){
+  const u = ultimoPedido();
+  if(!u) return;
+  const fuera = [];
+  u.lineas.forEach(l => {
+    if(bloqueado(PRODUCTS_BY_ID[l.key])){ fuera.push(l.name); return; }
+    cart[l.key] = Math.min(MAX_UDS, (cart[l.key] || 0) + l.qty);
+    pintarControles(l.key);
+  });
+  updateCartBar();
+  if(!panel.classList.contains("show")) openPanel();
+  if(fuera.length) aviso("NO DISPONIBLE", "Ahora no hay: " + fuera.join(", ") + ". El resto está en tu pedido, listo para enviar.");
+}
+
 function updateCartBar(){
   const lines = cartLines();
   const count = cartCount(lines);
@@ -453,12 +586,15 @@ function updateCartBar(){
   cartTotalLbl.textContent = money(currentTotal);
   renderPanel(lines, grandTotal);
   // Sin productos: de la barra de enviar solo queda una línea fina encima de la barra azul
-  bottomSendBtn.textContent = enviando ? "Enviando…" : (count === 0 ? "" : Aspecto.texto("enviar"));
-  bottomSendBtn.classList.toggle("idle", count === 0 && !enviando);
+  // Otra ronda (v30): sin nada escogido, la barra de enviar ofrece repetir el último pedido.
+  const repetible = count === 0 && !enviando ? ultimoPedido() : null;
+  bottomSendBtn.textContent = enviando ? "Enviando…" : (repetible ? "↻ Otra igual: " + resumenPedido(repetible) : (count === 0 ? "" : Aspecto.texto("enviar")));
+  bottomSendBtn.classList.toggle("idle", count === 0 && !enviando && !repetible);
+  bottomSendBtn.classList.toggle("repetir", !!repetible);
   bottomSendBtn.style.display = "block";
-  bottomSendBtn.style.pointerEvents = count === 0 ? "none" : "auto";
-  bottomSendBtn.setAttribute("aria-hidden", count === 0 ? "true" : "false");
-  bottomSendBtn.tabIndex = count === 0 ? -1 : 0;
+  bottomSendBtn.style.pointerEvents = (count === 0 && !repetible) ? "none" : "auto";
+  bottomSendBtn.setAttribute("aria-hidden", (count === 0 && !repetible) ? "true" : "false");
+  bottomSendBtn.tabIndex = (count === 0 && !repetible) ? -1 : 0;
   sendBtn.textContent = enviando ? "ENVIANDO…" : (count > 0 ? Aspecto.texto("enviar").toUpperCase() : (rounds.length ? "PEDIR ALGO MÁS" : "ESCOGE TUS PRODUCTOS"));
   sendBtn.disabled = bottomSendBtn.disabled = enviando;
   updateTabBadges();
@@ -558,6 +694,16 @@ function renderPanel(lines, total){
     label.textContent = MESA ? "PEDIDO " + siguiente + " · SIN ENVIAR" : "TU PEDIDO";
     panelBody.appendChild(label);
     lines.forEach(l => panelBody.appendChild(buildCartRow(l, "current")));
+  }
+
+  // Otra ronda (v30): en el tique, repetir el último pedido.
+  const u = lines.length === 0 ? ultimoPedido() : null;
+  if(u){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "repetir-btn";
+    b.innerHTML = `<b>↻ Pedir otra igual</b><span>${esc(resumenPedido(u))}</span>`;
+    b.addEventListener("click", repetirPedido);
+    panelBody.appendChild(b);
   }
 
   if(hidden > 0 || showAllRounds){
@@ -790,6 +936,7 @@ sendBtn.addEventListener("click", () => {
   }
 });
 bottomSendBtn.addEventListener("click", () => {
+  if(cartLines().length === 0 && bottomSendBtn.classList.contains("repetir")){ repetirPedido(); return; }
   if(cartLines().length === 0){
     window.scrollTo({ top: 0, behavior: "smooth" });
   } else {
@@ -856,10 +1003,12 @@ async function comprobarMesa(){
 async function init(){
   menuEl.innerHTML = `<div class="cart-empty" style="padding:40px 0;">Cargando la carta...</div>`;
   pintarTextos();
-  loadBar();
+  const barListo = loadBar();
   const mesaLista = comprobarMesa();
   try {
     await loadMenu();
+    // Las opciones del bar (v30) deciden cómo se pinta la carta: se espera a saberlas.
+    await conTiempo(barListo, 7000).catch(() => {});
     if(MENU_DE_BASE) ultimaCarta = Date.now();
     menuEl.innerHTML = "";
     renderCategories();
@@ -871,6 +1020,32 @@ async function init(){
   await mesaLista;
   CARTA_LISTA = true;
   updateCartBar();
+  mostrarBienvenida();
+}
+
+/* Bienvenida (v30, opción bienvenida): la primera vez que alguien abre la
+   carta con el QR de la mesa, tres pasos para que sepa que puede pedir desde
+   aquí. Solo sale una vez en cada móvil (por bar). */
+function mostrarBienvenida(){
+  if(!MESA || !opcion("bienvenida")) return;
+  try { if(leerLocal("carta.bienvenida." + BAR)) return; } catch(e) { return; }
+  const el = document.createElement("div");
+  el.className = "ficha-foto bienvenida";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-modal", "true");
+  el.innerHTML = `<div class="ff-caja bv-caja"><div class="ff-texto">
+      <div class="bv-mesa">${esc(MESA.nombre)}</div>
+      <div class="ff-nombre">Pide desde tu móvil</div>
+      <ol class="bv-pasos">
+        <li><b>Elige</b> lo que quieras y toca <b>+</b></li>
+        <li><b>Envía el pedido</b>: llega directo a la barra</li>
+        <li><b>Pagas al final</b>, como siempre</li>
+      </ol>
+      <button type="button" class="ff-anadir bv-ok">Empezar</button>
+    </div></div>`;
+  const cerrar = () => { el.remove(); try { guardarLocal("carta.bienvenida." + BAR, 1); } catch(e) {} };
+  el.addEventListener("click", ev => { if(ev.target === el || ev.target.closest(".bv-ok")) cerrar(); });
+  document.body.appendChild(el);
 }
 init();
 

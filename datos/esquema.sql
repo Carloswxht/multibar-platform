@@ -122,6 +122,7 @@ create table multibar.productos_multibar (
   visible       boolean not null default true,  -- false = no sale en la carta (lo cambia admin)
   featured      boolean not null default false, -- estrella "lo mejor de la casa"
   allergens     text[],                         -- pendiente: lista del local
+  racion        text check (char_length(racion) <= 40), -- «para 2–3 personas» (v30, opción raciones)
   photo         text not null default '',
   sort_order    integer not null default 0,
   updated_at    timestamptz not null default now(),

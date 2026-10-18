@@ -328,12 +328,23 @@ returns jsonb
 language plpgsql stable security definer
 set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare b bares_multibar;
+declare b bares_multibar; v_top jsonb := '{}'::jsonb;
 begin
   b := privado.bar_de_slug(p_bar);
+  -- Lo más pedido (v30, ajustes.mas_pedidos): los 8 productos que más se han
+  -- pedido en este bar en los últimos 30 días (en al menos 2 pedidos), con su puesto.
+  if coalesce((b.ajustes->>'mas_pedidos')::boolean, false) then
+    select coalesce(jsonb_object_agg(t.product_id::text, t.puesto), '{}'::jsonb) into v_top
+      from (select l.product_id, row_number() over (order by sum(l.quantity) desc, l.product_id) as puesto
+              from lineas_pedido_multibar l join pedidos_multibar o on o.id = l.order_id
+             where o.negocio_id = b.id and o.created_at > now() - interval '30 days' and l.quantity > 0
+             group by l.product_id having count(distinct o.id) >= 2
+             order by sum(l.quantity) desc, l.product_id limit 8) t;
+  end if;
   -- Con las opciones del bar encendidas (v25): el horario de cada pestaña y si
   -- ahora está abierta (ajustes.horarios), y la etiqueta de cada producto
-  -- (ajustes.destacados). Apagadas, la carta sale como siempre.
+  -- (ajustes.destacados). Apagadas, la carta sale como siempre. v30: alérgenos
+  -- (ajustes.alergenos), ración (ajustes.raciones) y puesto en lo más pedido.
   return (select coalesce(jsonb_agg(jsonb_build_object(
     'id', c.id, 'name', c.name, 'multi', c.multi, 'fam', c.fam, 'labs', to_jsonb(c.labs),
     'horario', case when coalesce((b.ajustes->>'horarios')::boolean, false) then c.horario end,
@@ -342,7 +353,10 @@ begin
       select jsonb_agg(jsonb_build_object(
         'dbId', p.id, 'n', p.name, 'dn', p.display_name, 'd', p.description,
         'p', p.price, 'size', p.size, 'only', p.only_size, 'sec', p.section,
-        'pop', p.featured, 'al', to_jsonb(p.allergens),
+        'pop', p.featured,
+        'al', case when coalesce((b.ajustes->>'alergenos')::boolean, false) then coalesce(to_jsonb(p.allergens), '[]'::jsonb) end,
+        'rac', case when coalesce((b.ajustes->>'raciones')::boolean, false) then p.racion end,
+        'top', (v_top->>p.id::text)::int,
         'img', case when coalesce((b.ajustes->>'fotos')::boolean, false) then p.photo else '' end,
         'marca', case when coalesce((b.ajustes->>'destacados')::boolean, false) then p.marca end,
         'agotado', not p.available) order by p.sort_order, p.id)
@@ -799,6 +813,7 @@ begin
             'seccion', p.section, 'precio', p.price, 'disponible', p.available,
             'visible', p.visible, 'destacado', p.featured, 'orden', p.sort_order,
             'marca', p.marca, 'foto', p.photo,
+            'alergenos', coalesce(to_jsonb(p.allergens), '[]'::jsonb), 'racion', p.racion,
             'actualizado', p.updated_at, 'actualizado_por', p.updated_by)
             order by c.sort_order, p.sort_order, p.id), '[]'::jsonb)
             from productos_multibar p join categorias_multibar c on c.negocio_id = p.negocio_id and c.id = p.category_id
@@ -943,9 +958,23 @@ returns jsonb
 language plpgsql security definer
 set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare s usuarios_multibar; v_id int; d jsonb := coalesce(p_datos, '{}'::jsonb);
+declare s usuarios_multibar; v_id int; d jsonb := coalesce(p_datos, '{}'::jsonb); v_al text[]; p productos_multibar;
 begin
   s := privado.exigir_rol(p_token, array['admin']);
+  -- Alérgenos (v30): los 14 de la normativa europea, por su código.
+  if d ? 'alergenos' then
+    if jsonb_typeof(d->'alergenos') <> 'array' then
+      raise exception 'DATOS_NO_VALIDOS';
+    end if;
+    select coalesce(array_agg(distinct a order by a), '{}') into v_al from jsonb_array_elements_text(d->'alergenos') a;
+    if exists (select 1 from unnest(v_al) a where a not in ('gluten','crustaceos','huevo','pescado','cacahuetes','soja',
+               'lacteos','frutos_cascara','apio','mostaza','sesamo','sulfitos','altramuces','moluscos')) then
+      raise exception 'DATOS_NO_VALIDOS';
+    end if;
+  end if;
+  if char_length(btrim(coalesce(d->>'racion', ''))) > 40 then
+    raise exception 'DATOS_NO_VALIDOS';
+  end if;
   -- La pestaña tiene que ser de su bar.
   if d->>'categoria' is not null
      and not exists (select 1 from categorias_multibar where negocio_id = s.negocio_id and id = d->>'categoria') then
@@ -965,6 +994,8 @@ begin
       visible      = coalesce((d->>'visible')::boolean, visible),
       featured     = coalesce((d->>'destacado')::boolean, featured),
       sort_order   = coalesce((d->>'orden')::int, sort_order),
+      allergens    = case when d ? 'alergenos' then v_al else allergens end,
+      racion       = case when d ? 'racion' then nullif(btrim(d->>'racion'), '') else racion end,
       updated_at   = now(), updated_by = s.name
     where id = (d->>'id')::int and negocio_id = s.negocio_id
     returning id into v_id;
@@ -976,15 +1007,24 @@ begin
       raise exception 'FALTAN_DATOS';
     end if;
     insert into productos_multibar (negocio_id, category_id, name, display_name, description, size, only_size, section,
-                          price, available, visible, featured, sort_order, updated_by)
+                          price, available, visible, featured, sort_order, updated_by, allergens, racion)
     values (s.negocio_id, d->>'categoria', btrim(d->>'nombre'), nullif(btrim(d->>'nombre_corto'), ''),
             coalesce(d->>'descripcion', ''), nullif(d->>'tamano', ''),
             coalesce((d->>'solo_tamano')::boolean, false), coalesce(d->>'seccion', ''),
             (d->>'precio')::numeric, coalesce((d->>'disponible')::boolean, true),
             coalesce((d->>'visible')::boolean, true), coalesce((d->>'destacado')::boolean, false),
             coalesce((d->>'orden')::int, (select coalesce(max(sort_order), 0) + 1 from productos_multibar where negocio_id = s.negocio_id)),
-            s.name)
+            s.name, case when d ? 'alergenos' then v_al end, nullif(btrim(d->>'racion'), ''))
     returning id into v_id;
+  end if;
+  -- Los alérgenos son del plato: se ponen igual en sus otros tamaños (Tapa / Plato…).
+  if d ? 'alergenos' then
+    select * into p from productos_multibar where id = v_id;
+    if p.display_name is not null and p.size is not null then
+      update productos_multibar set allergens = v_al
+       where negocio_id = s.negocio_id and category_id = p.category_id and display_name = p.display_name
+         and size is not null and id <> v_id;
+    end if;
   end if;
   return jsonb_build_object('id', v_id);
 end $$;
@@ -1624,7 +1664,8 @@ begin
   if p_opciones is null or jsonb_typeof(p_opciones) <> 'object' then
     raise exception 'FALTAN_DATOS';
   end if;
-  foreach k in array array['barra_cocina','avisos_mesa','cuentas_mesa','control_mesas','destacados','horarios','fotos'] loop
+  foreach k in array array['barra_cocina','avisos_mesa','cuentas_mesa','control_mesas','destacados','horarios','fotos',
+                           'otra_ronda','alergenos','mas_pedidos','carta_hora','bienvenida','raciones'] loop
     if p_opciones ? k then
       if jsonb_typeof(p_opciones->k) <> 'boolean' then
         raise exception 'OPCION_NO_VALIDA';
@@ -1735,9 +1776,9 @@ begin
     select v_id, id, name, sort_order, multi, fam, labs, destino
       from categorias_multibar where negocio_id = v_origen;
     insert into productos_multibar (negocio_id, category_id, name, display_name, description, size, only_size,
-                                    section, price, visible, allergens, sort_order, updated_by)
+                                    section, price, visible, allergens, racion, sort_order, updated_by)
     select v_id, category_id, name, display_name, description, size, only_size,
-           section, price, visible, allergens, sort_order, 'plataforma'
+           section, price, visible, allergens, racion, sort_order, 'plataforma'
       from productos_multibar where negocio_id = v_origen order by id;
   end if;
   if not exists (select 1 from categorias_multibar where negocio_id = v_id) then

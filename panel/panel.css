@@ -447,3 +447,9 @@ html.sin-scroll, html.sin-scroll body{ overflow:hidden; }
 .ojo{ position:absolute; top:0; right:0; bottom:0; width:48px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--suave); cursor:pointer; padding:0; }
 .ojo svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .ojo:active{ color:var(--navy); }
+
+/* Alérgenos de un producto (v30) */
+.al-panel{ margin-top:6px; }
+.al-rejilla{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.al-check{ display:flex; align-items:center; gap:8px; min-height:44px; padding:6px 8px; border:1px solid var(--linea); border-radius:8px; font-weight:500; font-size:13.5px; }
+.al-check input{ width:20px; height:20px; accent-color:var(--orange); flex:none; }
