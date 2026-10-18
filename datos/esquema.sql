@@ -100,6 +100,7 @@ create table multibar.categorias_multibar (
   labs        text[] not null default '{}',    -- tamaños que usa la pestaña
   destino     text not null default 'cocina'   -- a quién van sus pedidos con «barra y cocina» (v15)
               check (destino in ('barra','cocina')),
+  horario     jsonb,                           -- carta por horario (v25): {"dias":[1..7],"tramos":[{"desde":"13:00","hasta":"16:00"}]}; null = siempre
   primary key (negocio_id, id)
 );
 
@@ -125,6 +126,7 @@ create table multibar.productos_multibar (
   sort_order    integer not null default 0,
   updated_at    timestamptz not null default now(),
   updated_by    text,                           -- usuario del personal que lo cambió
+  marca         text check (marca in ('recomendado','del_dia','nuevo')), -- recomendados (v25): etiqueta en la carta
   foreign key (negocio_id, category_id) references categorias_multibar(negocio_id, id)
 );
 create index productos_multibar_category_idx on productos_multibar (negocio_id, category_id, sort_order);

@@ -410,3 +410,22 @@ html.sin-scroll, html.sin-scroll body{ overflow:hidden; }
 .firma-panel{ font-size:11px; color:var(--suave); letter-spacing:.04em; }
 .firma-panel a{ display:inline-block; padding:4px 8px; color:inherit; text-decoration:none; }
 .firma-panel b{ font-weight:600; color:var(--navy); text-decoration:underline; text-underline-offset:2px; }
+
+/* ---------------- Recomendados y horarios de la carta (v25) ---------------- */
+/* Sin etiqueta: un texto pequeño y discreto; con etiqueta: pastilla de color */
+.chip-marca{ display:inline-block; margin:0 8px 0 0; padding:6px 0; border:0; background:none; color:var(--suave); font-size:12px; font-weight:600; cursor:pointer; }
+.chip-marca.con{ padding:5px 10px; border-radius:999px; border:1.5px solid; margin:2px 8px 2px 0; }
+.chip-marca.marca-del_dia{ background:var(--navy); border-color:var(--navy); color:var(--sobre-principal, #fff); }
+.chip-marca.marca-recomendado{ background:var(--orange); border-color:var(--orange); color:var(--sobre-acento, #fff); }
+.chip-marca.marca-nuevo{ border-color:var(--orange); color:var(--navy); }
+.opciones-marca{ display:flex; flex-direction:column; gap:10px; margin-top:6px; }
+.opciones-marca .btn{ width:100%; }
+.dias-semana{ display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 14px; }
+.dias-semana label{ position:relative; }
+.dias-semana input{ position:absolute; opacity:0; inset:0; margin:0; }
+.dias-semana span{ display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:50%; border:1.5px solid var(--linea); font-weight:700; color:var(--suave); cursor:pointer; }
+.dias-semana input:checked + span{ background:var(--navy); border-color:var(--navy); color:var(--sobre-principal, #fff); }
+.dias-semana input:focus-visible + span{ outline:2px solid var(--orange); outline-offset:2px; }
+.fila-tramo{ display:flex; align-items:center; gap:8px; margin-bottom:10px; font-size:13.5px; color:var(--navy); }
+.fila-tramo > span:first-child{ width:74px; font-weight:700; }
+.fila-tramo input{ flex:1; min-width:0; min-height:44px; border:1.5px solid var(--linea); border-radius:10px; padding:0 8px; font:inherit; font-size:15px; background:#fff; color:var(--navy); }

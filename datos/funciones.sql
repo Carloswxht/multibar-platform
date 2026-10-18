@@ -43,6 +43,39 @@ as $$
     from bares_multibar where id = p_bar_id
 $$;
 
+-- Carta por horario (v25): ¿está abierta ahora una pestaña con este horario,
+-- según la hora del bar? Sin horario = siempre. Días ISO (1 = lunes … 7 =
+-- domingo); sin días = todos. Un tramo que acaba antes de empezar cruza la
+-- medianoche (20:00–01:00) y cuenta por el día en que empieza.
+create or replace function privado.dia_en(p_h jsonb, p_dia int)
+returns boolean
+language sql immutable
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+  select jsonb_typeof(p_h->'dias') is distinct from 'array' or jsonb_array_length(p_h->'dias') = 0
+      or (p_h->'dias') @> to_jsonb(p_dia)
+$$;
+create or replace function privado.horario_abierto(p_h jsonb, p_zona text, p_t timestamptz default now())
+returns boolean
+language sql stable
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+  select p_h is null or jsonb_typeof(p_h->'tramos') is distinct from 'array' or jsonb_array_length(p_h->'tramos') = 0
+      or exists (
+        select 1
+          from jsonb_array_elements(p_h->'tramos') t,
+               lateral (select (p_t at time zone p_zona) as ahora) a,
+               lateral (select (t->>'desde')::time as d, (t->>'hasta')::time as h,
+                               extract(isodow from a.ahora)::int as dia, a.ahora::time as hora) x
+         where case
+                 when x.d < x.h then
+                   privado.dia_en(p_h, x.dia) and x.hora >= x.d and x.hora < x.h
+                 else  -- cruza la medianoche (o el día entero si desde = hasta)
+                   (privado.dia_en(p_h, x.dia) and x.hora >= x.d)
+                   or (privado.dia_en(p_h, case when x.dia = 1 then 7 else x.dia - 1 end) and x.hora < x.h)
+               end)
+$$;
+
 -- Quién es el usuario del personal de este token (o error si no vale).
 -- Si su bar está desactivado, la sesión deja de valer.
 create or replace function privado.staff_de_token(p_token text)
@@ -298,13 +331,19 @@ as $$
 declare b bares_multibar;
 begin
   b := privado.bar_de_slug(p_bar);
+  -- Con las opciones del bar encendidas (v25): el horario de cada pestaña y si
+  -- ahora está abierta (ajustes.horarios), y la etiqueta de cada producto
+  -- (ajustes.destacados). Apagadas, la carta sale como siempre.
   return (select coalesce(jsonb_agg(jsonb_build_object(
     'id', c.id, 'name', c.name, 'multi', c.multi, 'fam', c.fam, 'labs', to_jsonb(c.labs),
+    'horario', case when coalesce((b.ajustes->>'horarios')::boolean, false) then c.horario end,
+    'abierta', not coalesce((b.ajustes->>'horarios')::boolean, false) or privado.horario_abierto(c.horario, b.zona_horaria),
     'items', coalesce((
       select jsonb_agg(jsonb_build_object(
         'dbId', p.id, 'n', p.name, 'dn', p.display_name, 'd', p.description,
         'p', p.price, 'size', p.size, 'only', p.only_size, 'sec', p.section,
         'pop', p.featured, 'al', to_jsonb(p.allergens), 'img', p.photo,
+        'marca', case when coalesce((b.ajustes->>'destacados')::boolean, false) then p.marca end,
         'agotado', not p.available) order by p.sort_order, p.id)
       from productos_multibar p where p.negocio_id = c.negocio_id and p.category_id = c.id and p.visible), '[]'::jsonb)
   ) order by c.sort_order), '[]'::jsonb)
@@ -336,7 +375,7 @@ language plpgsql security definer
 set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
-  b bares_multibar; v_partes jsonb; v_ronda int; v_hasta timestamptz;
+  b bares_multibar; v_partes jsonb; v_ronda int; v_hasta timestamptz; v_fuera text;
 begin
   b := privado.bar_de_slug(p_bar);
   if p_dispositivo is null then
@@ -368,6 +407,19 @@ begin
   if (select count(*) from pedidos_multibar where negocio_id = b.id and mesa_id = p_mesa and parte_de is null
        and created_at > now() - interval '10 minutes') >= 6 then
     raise exception 'LIMITE_MESA';
+  end if;
+
+  -- Carta por horario (v25): nada de una pestaña que ahora no se sirve.
+  -- (Los pedidos que mete el personal desde el panel no lo comprueban.)
+  if coalesce((b.ajustes->>'horarios')::boolean, false) and jsonb_typeof(p_lineas) = 'array' then
+    select string_agg(distinct p.name, ', ') into v_fuera
+      from jsonb_array_elements(p_lineas) l
+      join productos_multibar p on p.negocio_id = b.id and p.id = (l->>'producto')::int
+      join categorias_multibar c on c.negocio_id = p.negocio_id and c.id = p.category_id
+     where not privado.horario_abierto(c.horario, b.zona_horaria);
+    if v_fuera is not null then
+      raise exception 'FUERA_DE_HORARIO';
+    end if;
   end if;
 
   perform privado.limpiar();
@@ -745,6 +797,7 @@ begin
             'descripcion', p.description, 'tamano', p.size, 'solo_tamano', p.only_size,
             'seccion', p.section, 'precio', p.price, 'disponible', p.available,
             'visible', p.visible, 'destacado', p.featured, 'orden', p.sort_order,
+            'marca', p.marca,
             'actualizado', p.updated_at, 'actualizado_por', p.updated_by)
             order by c.sort_order, p.sort_order, p.id), '[]'::jsonb)
             from productos_multibar p join categorias_multibar c on c.negocio_id = p.negocio_id and c.id = p.category_id
@@ -767,9 +820,88 @@ begin
   end if;
 end $$;
 
+-- Recomendados (v25): poner o quitar la etiqueta de un producto de su bar
+-- («recomendado», «del_dia», «nuevo»; vacío = sin etiqueta). Barra y admin,
+-- como los agotados: el plato del día cambia cada día.
+create or replace function public.panel_marca_producto_multibar(p_token text, p_producto integer, p_marca text)
+returns void
+language plpgsql security definer
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+declare s usuarios_multibar; v text := nullif(trim(coalesce(p_marca, '')), '');
+begin
+  s := privado.exigir_rol(p_token, array['barra','admin']);
+  if v is not null and v not in ('recomendado','del_dia','nuevo') then
+    raise exception 'MARCA_NO_VALIDA';
+  end if;
+  update productos_multibar set marca = v, updated_at = now(), updated_by = s.name
+   where id = p_producto and negocio_id = s.negocio_id;
+  if not found then
+    raise exception 'PRODUCTO_NO_VALIDO';
+  end if;
+end $$;
+
 -- =====================================================================
 -- VENTANILLAS DEL ADMINISTRADOR (de su bar)
 -- =====================================================================
+
+-- Carta por horario (v25): las pestañas de su bar con su horario y si ahora están abiertas.
+create or replace function public.admin_horarios_multibar(p_token text)
+returns jsonb
+language plpgsql security definer
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+declare s usuarios_multibar; z text;
+begin
+  s := privado.exigir_rol(p_token, array['admin']);
+  select zona_horaria into z from bares_multibar where id = s.negocio_id;
+  return (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'nombre', c.name, 'horario', c.horario,
+                   'abierta', privado.horario_abierto(c.horario, z)) order by c.sort_order), '[]'::jsonb)
+            from categorias_multibar c where c.negocio_id = s.negocio_id);
+end $$;
+
+-- Guardar el horario de una pestaña de su bar (null o sin tramos = siempre).
+-- Formato: {"dias":[1..7], "tramos":[{"desde":"HH:MM","hasta":"HH:MM"}, …]} (máx. 4 tramos).
+create or replace function public.admin_guardar_horario_multibar(p_token text, p_categoria text, p_horario jsonb)
+returns jsonb
+language plpgsql security definer
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+declare s usuarios_multibar; v jsonb; t jsonb; d jsonb; v_dias jsonb := '[]'::jsonb; v_tramos jsonb := '[]'::jsonb;
+begin
+  s := privado.exigir_rol(p_token, array['admin']);
+  if p_horario is not null and jsonb_typeof(p_horario) = 'object'
+     and jsonb_typeof(p_horario->'tramos') = 'array' and jsonb_array_length(p_horario->'tramos') > 0 then
+    if jsonb_array_length(p_horario->'tramos') > 4 then
+      raise exception 'HORARIO_NO_VALIDO';
+    end if;
+    for t in select * from jsonb_array_elements(p_horario->'tramos') loop
+      if coalesce(t->>'desde', '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+         or coalesce(t->>'hasta', '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then
+        raise exception 'HORARIO_NO_VALIDO';
+      end if;
+      v_tramos := v_tramos || jsonb_build_array(jsonb_build_object('desde', t->>'desde', 'hasta', t->>'hasta'));
+    end loop;
+    if jsonb_typeof(p_horario->'dias') = 'array' then
+      for d in select * from jsonb_array_elements(p_horario->'dias') loop
+        if jsonb_typeof(d) <> 'number' or (d::text)::int not between 1 and 7 then
+          raise exception 'HORARIO_NO_VALIDO';
+        end if;
+        if not v_dias @> d then v_dias := v_dias || jsonb_build_array(d); end if;
+      end loop;
+      if jsonb_array_length(v_dias) = 0 then
+        raise exception 'HORARIO_NO_VALIDO';  -- ningún día: mejor ocultar los productos
+      end if;
+    end if;
+    v := jsonb_build_object('dias', coalesce((select jsonb_agg(x order by (x::text)::int) from jsonb_array_elements(v_dias) x), '[1,2,3,4,5,6,7]'::jsonb),
+                            'tramos', v_tramos);
+  end if;
+  update categorias_multibar set horario = v where negocio_id = s.negocio_id and id = p_categoria;
+  if not found then
+    raise exception 'CATEGORIA_NO_VALIDA';
+  end if;
+  return v;
+end $$;
 
 -- Crear (sin "id") o cambiar (con "id") un producto de su bar: precio,
 -- nombre, visible, etc. Los productos no se borran: se ocultan
@@ -1285,7 +1417,10 @@ grant execute on function
   public.panel_cobrar_multibar(text, integer, jsonb),
   public.panel_cobradas_multibar(text),
   public.panel_reabrir_cuenta_multibar(text, integer, timestamptz),
-  public.personal_restablecer(text, text)
+  public.personal_restablecer(text, text),
+  public.panel_marca_producto_multibar(text, integer, text),
+  public.admin_horarios_multibar(text),
+  public.admin_guardar_horario_multibar(text, text, jsonb)
 to anon, authenticated;
 
 -- Solo el servidor de Supabase (Edge Function con la clave secreta) puede

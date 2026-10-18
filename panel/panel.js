@@ -24,6 +24,8 @@ const VISTAS = {
   cuentas:  { nombre: 'Cuentas de mesas', cab: 'CUENTAS',          roles: ['camarero', 'barra', 'admin'], icono: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h4', opcion: 'cuentas_mesa' },
   abrir:    { nombre: 'Abrir mesas',      cab: 'ABRIR MESAS',      roles: ['camarero', 'barra', 'admin'], icono: 'M6 11h12v9H6zM9 11V8a3 3 0 0 1 6 0v3', opcion: 'control_mesas' },
   precios:  { nombre: 'Lista de precios', cab: 'LISTA DE PRECIOS', roles: ['barra', 'admin'],             icono: 'M4 6h16M4 12h16M4 18h10M18 16v4' },
+  // Carta por horario (v25, opción ajustes.horarios).
+  horarios: { nombre: 'Horarios de la carta', cab: 'HORARIOS',     roles: ['admin'],                      icono: 'M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z', opcion: 'horarios' },
   resumen:  { nombre: 'Resumen del día',  cab: 'RESUMEN DEL DÍA',  roles: ['barra', 'admin'],             icono: 'M5 20V11M12 20V5M19 20v-7' },
   mesas:    { nombre: 'Mesas',            cab: 'MESAS',            roles: ['admin'],                      icono: 'M4 9h16M6 9v10M18 9v10M9 5h6' },
   usuarios: { nombre: 'Usuarios',         cab: 'USUARIOS',         roles: ['admin'],                      icono: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20c1.5-4 4.5-5 8-5s6.5 1 8 5' },
@@ -333,6 +335,7 @@ function irA(vista){
   $('sCuentas').hidden = vista !== 'cuentas';
   $('sAbrir').hidden = vista !== 'abrir';
   $('sPrecios').hidden = vista !== 'precios';
+  $('sHorarios').hidden = vista !== 'horarios';
   $('sResumen').hidden = vista !== 'resumen';
   $('sMesas').hidden = vista !== 'mesas';
   $('sUsuarios').hidden = vista !== 'usuarios';
@@ -341,6 +344,7 @@ function irA(vista){
   if(vista === 'cuentas') cargarCuentas();
   if(vista === 'abrir') cargarAbrir();
   if(vista === 'precios') cargarProductos();
+  if(vista === 'horarios') cargarHorarios();
   if(vista === 'resumen') pintarResumen();
   if(vista === 'mesas') cargarMesas();
   if(vista === 'usuarios') cargarUsuarios();
@@ -768,7 +772,7 @@ function pintarProductos(){
       return `<div class="prod ${cambiado ? 'cambiado' : ''} ${p.visible ? '' : 'oculto'}" data-prod="${p.id}">
         <div class="prod-info">
           ${esAdmin ? `<button class="prod-nombre" type="button" data-editar="${p.id}">${esc(p.nombre)}</button>` : `<div class="prod-nombre">${esc(p.nombre)}</div>`}
-          <div class="prod-sub">${p.visible ? '' : '<span class="chip">Oculto en la carta</span>'}${esc(p.descripcion || '')}</div>
+          <div class="prod-sub">${opcionBar('destacados') ? `<button class="chip-marca ${p.marca ? 'con marca-' + p.marca : ''}" type="button" data-marca="${p.id}">${p.marca ? '★ ' + MARCAS[p.marca] : '☆ Destacar'}</button>` : ''}${p.visible ? '' : '<span class="chip">Oculto en la carta</span>'}${esc(p.descripcion || '')}</div>
         </div>
         <button class="hay ${p.disponible ? '' : 'agotado'}" type="button" data-disp="${p.id}" aria-pressed="${!p.disponible}">${p.disponible ? 'Hay' : 'Agotado'}</button>
         ${esAdmin
@@ -840,9 +844,116 @@ $('listaProductos').addEventListener('click', async (ev) => {
     pintarProductos();
     return;
   }
+  const mb = ev.target.closest('[data-marca]');
+  if(mb) return elegirMarca(estado.productos.find(x => x.id === Number(mb.dataset.marca)));
   const ed = ev.target.closest('[data-editar]');
   if(ed) editarProducto(estado.productos.find(x => x.id === Number(ed.dataset.editar)));
 });
+
+/* ---------------- RECOMENDADOS (v25, opción ajustes.destacados) ----------------
+   Barra y admin ponen a un producto la etiqueta que sale en la carta y en su
+   pestaña «Recomendados». Se guarda al momento. */
+const MARCAS = { del_dia: 'Plato del día', recomendado: 'Recomendado', nuevo: 'Nuevo' };
+function elegirMarca(p){
+  if(!p) return;
+  abrirModalLibre('Etiqueta en la carta', () => {
+    $('modalCampos').innerHTML = `<p class="sub-seccion">${esc(p.nombre)}</p>
+      <div class="opciones-marca">
+        ${Object.keys(MARCAS).map(m => `<button type="button" class="btn ${p.marca === m ? 'btn-naranja' : 'btn-borde'}" data-m="${m}">${MARCAS[m]}</button>`).join('')}
+        <button type="button" class="btn ${p.marca ? 'btn-borde' : 'btn-naranja'}" data-m="">Sin etiqueta</button>
+      </div>`;
+  }, null);
+  estado.alTocarModal = async (ev) => {
+    const b = ev.target.closest('[data-m]');
+    if(!b || b.disabled) return;
+    const m = b.dataset.m;
+    $('modalCampos').querySelectorAll('[data-m]').forEach(x => { x.disabled = true; });
+    try {
+      await datosPanel.marca(p.id, m);
+      p.marca = m || null;
+      cerrarModal();
+      toast(m ? p.nombre + ': ' + MARCAS[m] : p.nombre + ': sin etiqueta');
+      pintarProductos();
+    } catch(e) {
+      $('modalCampos').querySelectorAll('[data-m]').forEach(x => { x.disabled = false; });
+      if(e.codigo === 'SESION_CADUCADA'){ cerrarModal(); return volverAlLogin(e.message); }
+      $('modalError').textContent = e.message; $('modalError').hidden = false;
+    }
+  };
+}
+
+/* =====================================================================
+   HORARIOS DE LA CARTA (v25, admin, opción ajustes.horarios)
+   Cada pestaña de la carta puede tener días y horas. Fuera de horario la
+   carta la enseña en gris y no deja pedirla (la base también lo comprueba).
+   Los pedidos que mete el personal desde aquí sí se pueden hacer.
+   ===================================================================== */
+const DIAS_CORTOS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+const DIAS_LARGOS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+function listaY(xs){ return xs.length > 1 ? xs.slice(0, -1).join(', ') + ' y ' + xs[xs.length - 1] : (xs[0] || ''); }
+function textoHorario(h){
+  if(!h || !Array.isArray(h.tramos) || !h.tramos.length) return 'Siempre';
+  let t = listaY(h.tramos.map(x => x.desde === x.hasta ? 'todo el día' : 'de ' + x.desde + ' a ' + x.hasta));
+  const d = (Array.isArray(h.dias) ? h.dias : []).map(Number).sort();
+  if(d.length && d.length < 7){
+    const seguidos = d.every((n, i) => i === 0 || n === d[i - 1] + 1);
+    t += ', ' + (seguidos && d.length > 2 ? 'de ' + DIAS_LARGOS[d[0] - 1] + ' a ' + DIAS_LARGOS[d[d.length - 1] - 1] : listaY(d.map(n => DIAS_LARGOS[n - 1])));
+  }
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+async function cargarHorarios(){
+  if(!estado.horarios) $('listaHorarios').innerHTML = '<div class="vacio">Cargando…</div>';
+  try { estado.horarios = await datosPanel.horarios() || []; pintarHorarios(); }
+  catch(e) { tratarError(e); }
+}
+function pintarHorarios(){
+  $('listaHorarios').innerHTML = (estado.horarios || []).map(c => `
+    <div class="ficha mesa-abrir">
+      <div>
+        <div class="ficha-titulo">${esc(c.nombre)}</div>
+        <div class="ficha-detalle">${esc(textoHorario(c.horario))}${c.horario ? ` · <span class="estado-mesa ${c.abierta ? 'si' : ''}">${c.abierta ? 'Ahora se sirve' : 'Ahora no se sirve'}</span>` : ''}</div>
+      </div>
+      <button class="btn btn-borde" type="button" data-horario="${esc(c.id)}">Cambiar</button>
+    </div>`).join('') || '<div class="vacio">No hay pestañas en la carta.</div>';
+}
+$('listaHorarios').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-horario]');
+  if(b) editarHorario((estado.horarios || []).find(c => c.id === b.dataset.horario));
+});
+function editarHorario(c){
+  if(!c) return;
+  const h = c.horario || {};
+  const dias = Array.isArray(h.dias) && h.dias.length ? h.dias.map(Number) : [1, 2, 3, 4, 5, 6, 7];
+  const tr = Array.isArray(h.tramos) ? h.tramos : [];
+  const tramo = (i) => `<div class="fila-tramo"><span>${i === 0 ? 'Horario' : 'Y también'}</span>
+      <input type="time" id="hDesde${i}" value="${esc((tr[i] || {}).desde || '')}" aria-label="Desde">
+      <span>a</span>
+      <input type="time" id="hHasta${i}" value="${esc((tr[i] || {}).hasta || '')}" aria-label="Hasta"></div>`;
+  abrirModalLibre(c.nombre, () => {
+    $('modalCampos').innerHTML = `
+      <label class="campo campo-check"><input type="checkbox" id="hSiempre" ${c.horario ? '' : 'checked'}><span>Siempre disponible (sin horario)</span></label>
+      <div id="hDetalle" ${c.horario ? '' : 'hidden'}>
+        <p class="sub-seccion">Días</p>
+        <div class="dias-semana">${DIAS_CORTOS.map((d, i) => `<label><input type="checkbox" data-dia="${i + 1}" ${dias.includes(i + 1) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div>
+        <p class="sub-seccion">Horas (si cierra después de medianoche, pon p. ej. de 20:00 a 01:00)</p>
+        ${tramo(0)}${tramo(1)}
+      </div>`;
+    $('hSiempre').addEventListener('change', () => { $('hDetalle').hidden = $('hSiempre').checked; });
+  }, async () => {
+    let horario = null;
+    if(!$('hSiempre').checked){
+      const ds = [...$('modalCampos').querySelectorAll('[data-dia]')].filter(x => x.checked).map(x => Number(x.dataset.dia));
+      const tramos = [0, 1].map(i => ({ desde: $('hDesde' + i).value, hasta: $('hHasta' + i).value })).filter(t => t.desde || t.hasta);
+      if(!ds.length) throw new Error('Marca al menos un día.');
+      if(!tramos.length) throw new Error('Pon al menos un horario (desde y hasta).');
+      if(tramos.some(t => !t.desde || !t.hasta)) throw new Error('Cada horario necesita hora de inicio y de fin.');
+      horario = { dias: ds, tramos };
+    }
+    c.horario = await datosPanel.guardarHorario(c.id, horario);
+    toast(c.nombre + ': ' + textoHorario(c.horario).toLowerCase());
+    cargarHorarios();
+  });
+}
 
 $('nuevoProd').addEventListener('click', () => editarProducto(null));
 

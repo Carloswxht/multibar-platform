@@ -14,7 +14,7 @@
    con ?v=N (otra dirección, así que llega la nueva). Al publicar una
    versión: subir VERSION_WEB aquí, en carta/ y panel/, los ?v= de los
    archivos y el número de version.json. */
-var VERSION_WEB = 24;
+var VERSION_WEB = 25;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -39,7 +39,7 @@ var VERSION_WEB = 24;
      recordó la última vez; si es la primera, la carta espera a saberlo
      para no enseñar un momento colores que no son del bar. El icono y el
      nombre para instalar la carta en el móvil también son de cada bar. -->
-<script src="../comun/aspecto.js?v=24"></script>
+<script src="../comun/aspecto.js?v=25"></script>
 <script>
 (function(){
   var info = null;
@@ -49,8 +49,8 @@ var VERSION_WEB = 24;
 </script>
 
 <title>Carta digital</title>
-<link rel="stylesheet" href="../comun/estilos.css?v=24">
-<link rel="stylesheet" href="carta.css?v=24">
+<link rel="stylesheet" href="../comun/estilos.css?v=25">
+<link rel="stylesheet" href="carta.css?v=25">
 </head>
 <body>
 
@@ -76,7 +76,7 @@ var VERSION_WEB = 24;
     <!-- Líneas del pie de cada bar (ajustes.pie en la base) -->
     <div id="barPie"></div>
     <div class="legal-enlace" id="legalEnlace" hidden><a id="legalLink" href="../legal/">Aviso legal y privacidad</a></div>
-    <div class="version">Carta v24</div>
+    <div class="version">Carta v25</div>
     <div class="firma"><a href="https://www.autonomialab.es" target="_blank" rel="noopener">Carta digital por <b>autonomIA Lab</b></a></div>
   </footer>
 </div>
@@ -134,7 +134,7 @@ var VERSION_WEB = 24;
   </div>
 </div>
 
-<script src="../comun/datos.js?v=24"></script>
-<script src="carta.js?v=24"></script>
+<script src="../comun/datos.js?v=25"></script>
+<script src="carta.js?v=25"></script>
 </body>
 </html>
