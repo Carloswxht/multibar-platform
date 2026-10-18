@@ -12,8 +12,13 @@
 -- Las tablas están en las carpetas «comun» y «multibar» (17 oct).
 set search_path = multibar, comun, public;
 
-insert into bares (id, slug, nombre, subtitulo, ajustes) overriding system value values
-  (1, 'lamardegambas', 'La Mar de Gambas', 'Cervecerías · Desde 2007', jsonb_build_object(
+insert into comun.negocios (id, slug, nombre, tipo) overriding system value values
+  (1, 'lamardegambas', 'La Mar de Gambas', 'multibar');
+select setval(pg_get_serial_sequence('comun.negocios','id'), (select max(id) from comun.negocios));
+insert into comun.productos_contratados (negocio_id, producto) values (1, 'multibar');
+
+insert into multibar.ajustes_multibar (negocio_id, subtitulo, ajustes) values
+  (1, 'Cervecerías · Desde 2007', jsonb_build_object(
     'pie', jsonb_build_array(
       'IVA incluido',
       'Picos 0,90€ por persona · Extra de salsa 0,50€',
@@ -25,12 +30,11 @@ insert into bares (id, slug, nombre, subtitulo, ajustes) overriding system value
                   "fondo": "#FFFFFF", "fondo_2": "#F3F6FB", "texto": "#0F1E45"},
       "fuentes": {"titulos": "oswald", "texto": "dmsans"}, "cabecera": "nombre",
       "icono": "datos/bares/lamardegambas/icono-512.png", "nombre_corto": "La Mar de Gambas"}'::jsonb));
-select setval(pg_get_serial_sequence('bares','id'), (select max(id) from bares));
 
 -- ---------------- PESTAÑAS (9) ----------------
 -- Café y bebidas y Cervezas y copas van primero (añadidas el 11 oct, con
 -- precios provisionales: las cartas físicas no traen bebidas).
-insert into categories (bar_id, id, name, sort_order, multi, fam, labs) values
+insert into categorias_multibar (negocio_id, id, name, sort_order, multi, fam, labs) values
   (1, 'cafe', 'CAFÉ Y BEBIDAS', 1, true, '', '{}'),
   (1, 'cervezas', 'CERVEZAS Y COPAS', 2, true, '', '{}'),
   (1, 'mar', 'MARISCO Y MAR', 3, true, 'tp', ARRAY['Tapa','Plato']),
@@ -43,9 +47,9 @@ insert into categories (bar_id, id, name, sort_order, multi, fam, labs) values
 
 -- ---------------- PRODUCTOS (139) ----------------
 -- Barra y cocina (v15): las pestañas de bebida van a la barra; el resto, a cocina.
-update categories set destino = 'barra' where bar_id = 1 and id in ('cafe', 'cervezas', 'bodega');
+update categorias_multibar set destino = 'barra' where negocio_id = 1 and id in ('cafe', 'cervezas', 'bodega');
 
-insert into products (bar_id, id, category_id, name, display_name, description, size, only_size, section, price, featured, allergens, photo, sort_order) overriding system value values
+insert into productos_multibar (negocio_id, id, category_id, name, display_name, description, size, only_size, section, price, featured, allergens, photo, sort_order) overriding system value values
   (1, 1, 'mar', 'Media mariscada', NULL, '550 g aprox. · gambas, patas rusas, langostinos, cigalas y mejillones', NULL, false, 'MARISCO COCIDO', 20.00, false, NULL, '', 1),
   (1, 2, 'mar', 'Gambas', NULL, '200 gr', NULL, false, 'MARISCO COCIDO', 7.50, false, NULL, '', 2),
   (1, 3, 'mar', 'Langostinos', NULL, '200 gr', NULL, false, 'MARISCO COCIDO', 7.00, false, NULL, '', 3),
@@ -153,7 +157,7 @@ insert into products (bar_id, id, category_id, name, display_name, description, 
   (1, 105, 'bodega', 'Izaguirre Rojo (Copa)', 'Izaguirre Rojo', 'Copa · vermouth', 'Copa', true, 'LA BODEGA', 3.80, false, NULL, '', 105);
 
 -- Bebidas (añadidas el 11 oct, ver datos/cambios/2026-10-11-bebidas.sql). PRECIOS PROVISIONALES.
-insert into products (bar_id, id, category_id, name, display_name, description, size, only_size, section, price, featured, allergens, photo, sort_order) overriding system value values
+insert into productos_multibar (negocio_id, id, category_id, name, display_name, description, size, only_size, section, price, featured, allergens, photo, sort_order) overriding system value values
   (1, 106, 'cafe', 'Café solo', NULL, '', NULL, false, 'CAFÉS', 1.30, false, NULL, '', 106),
   (1, 107, 'cafe', 'Cortado', NULL, '', NULL, false, 'CAFÉS', 1.40, false, NULL, '', 107),
   (1, 108, 'cafe', 'Americano', NULL, '', NULL, false, 'CAFÉS', 1.40, false, NULL, '', 108),
@@ -189,10 +193,10 @@ insert into products (bar_id, id, category_id, name, display_name, description, 
   (1, 138, 'cervezas', 'Vodka con naranja o limón', NULL, '', NULL, false, 'COMBINADOS', 6.50, false, NULL, '', 138),
   (1, 139, 'cervezas', 'Chupito', NULL, 'orujo, pacharán o licor de hierbas', NULL, false, 'COMBINADOS', 2.50, false, NULL, '', 139);
 -- Los productos nuevos que cree el admin seguirán a partir del 140.
-select setval(pg_get_serial_sequence('products','id'), (select max(id) from products));
+select setval(pg_get_serial_sequence('multibar.productos_multibar','id'), (select max(id) from productos_multibar));
 
 -- ---------------- MESAS DE EJEMPLO (1 a 10) ----------------
 -- Hipotéticas hasta tener las reales del local. El código secreto de
 -- cada QR lo genera la base al crear la mesa (no está en este archivo).
-insert into mesas (bar_id, id, name)
+insert into mesas_multibar (negocio_id, id, name)
 select 1, n, 'Mesa ' || n from generate_series(1, 10) as n;

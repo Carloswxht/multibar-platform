@@ -145,20 +145,20 @@ function dispositivoId(){
 /* ---------------- CARTA (cliente de la mesa) ---------------- */
 const datosCarta = {
   // { slug, nombre, subtitulo, ajustes: { pie: [líneas del pie de la carta] } }
-  bar: () => apiRpc('carta_bar', { p_bar: BAR }),
-  menu: () => apiRpc('carta_menu', { p_bar: BAR }),
-  mesa: (mesa, codigo) => apiRpc('carta_mesa', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || '') }),
+  bar: () => apiRpc('carta_bar_multibar', { p_bar: BAR }),
+  menu: () => apiRpc('carta_menu_multibar', { p_bar: BAR }),
+  mesa: (mesa, codigo) => apiRpc('carta_mesa_multibar', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || '') }),
   // lineas: [{ producto: id, cantidad: n, nota: '...' }]
-  crearPedido: (mesa, codigo, lineas) => apiRpc('crear_pedido', {
+  crearPedido: (mesa, codigo, lineas) => apiRpc('crear_pedido_multibar', {
     p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || ''), p_dispositivo: dispositivoId(), p_lineas: lineas,
   }),
   // lineas vacías = anular el pedido
-  editarPedido: (pedidoId, lineas) => apiRpc('editar_pedido', {
+  editarPedido: (pedidoId, lineas) => apiRpc('editar_pedido_multibar', {
     p_pedido: pedidoId, p_dispositivo: dispositivoId(), p_lineas: lineas,
   }),
-  misPedidos: () => apiRpc('mis_pedidos', { p_bar: BAR, p_dispositivo: dispositivoId() }),
+  misPedidos: () => apiRpc('mis_pedidos_multibar', { p_bar: BAR, p_dispositivo: dispositivoId() }),
   // «Llamar al camarero» (tipo 'camarero') o «Pedir la cuenta» ('cuenta'), v15.
-  aviso: (mesa, codigo, tipo) => apiRpc('carta_aviso', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || ''), p_tipo: tipo }),
+  aviso: (mesa, codigo, tipo) => apiRpc('carta_aviso_multibar', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || ''), p_tipo: tipo }),
 };
 
 /* ---------------- LOGIN DEL PERSONAL ----------------
@@ -239,34 +239,34 @@ async function rpcPersonal(nombre, params){
 
 /* ---------------- PANEL (camarero, barra y admin) ---------------- */
 const datosPanel = {
-  pedidos: (desde) => rpcPersonal('panel_pedidos', desde ? { p_desde: desde } : {}),
+  pedidos: (desde) => rpcPersonal('panel_pedidos_multibar', desde ? { p_desde: desde } : {}),
   // Pedidos del día + avisos de las mesas sin atender (v15): { pedidos, avisos }
-  estado: () => rpcPersonal('panel_estado'),
-  atenderAviso: (avisoId) => rpcPersonal('panel_atender_aviso', { p_aviso: avisoId }),
+  estado: () => rpcPersonal('panel_estado_multibar'),
+  atenderAviso: (avisoId) => rpcPersonal('panel_atender_aviso_multibar', { p_aviso: avisoId }),
   // Cuentas de las mesas: lo de hoy sin cobrar, mesa por mesa (v15).
-  cuentas: () => rpcPersonal('panel_cuentas'),
+  cuentas: () => rpcPersonal('panel_cuentas_multibar'),
   // Cobra SOLO los pedidos servidos que se ven en pantalla (ids), nada más.
-  cobrar: (mesa, pedidos) => rpcPersonal('panel_cobrar', { p_mesa: Number(mesa), p_pedidos: (pedidos || []).map(Number) }),
-  cobradas: () => rpcPersonal('panel_cobradas'),
-  reabrirCuenta: (mesa, cuando) => rpcPersonal('panel_reabrir_cuenta', { p_mesa: Number(mesa), p_cuando: cuando }),
+  cobrar: (mesa, pedidos) => rpcPersonal('panel_cobrar_multibar', { p_mesa: Number(mesa), p_pedidos: (pedidos || []).map(Number) }),
+  cobradas: () => rpcPersonal('panel_cobradas_multibar'),
+  reabrirCuenta: (mesa, cuando) => rpcPersonal('panel_reabrir_cuenta_multibar', { p_mesa: Number(mesa), p_cuando: cuando }),
   // estado: 'en_preparacion' (aceptar) | 'servido' | 'enviado' (deshacer a nuevo)
-  marcar: (pedidoId, estado) => rpcPersonal('panel_marcar', { p_pedido: pedidoId, p_estado: estado }),
+  marcar: (pedidoId, estado) => rpcPersonal('panel_marcar_multibar', { p_pedido: pedidoId, p_estado: estado }),
   // cambios: { lineas: [{ id, cantidad }] } (una línea a 0 queda en el pedido,
   // en gris y a cero euros). La base admite también "nuevas", pero el panel
   // añade productos con un pedido nuevo (crearPedido).
-  modificar: (pedidoId, cambios) => rpcPersonal('panel_modificar_pedido', { p_pedido: pedidoId, p_cambios: cambios }),
+  modificar: (pedidoId, cambios) => rpcPersonal('panel_modificar_pedido_multibar', { p_pedido: pedidoId, p_cambios: cambios }),
   // Pedido nuevo tomado por el camarero (entra como NUEVO, igual que los del cliente).
   // lineas: [{ producto, cantidad, nota }]
-  crearPedido: (mesa, lineas) => rpcPersonal('panel_crear_pedido', { p_mesa: Number(mesa), p_lineas: lineas }),
-  mesasPanel: () => rpcPersonal('panel_mesas'),
+  crearPedido: (mesa, lineas) => rpcPersonal('panel_crear_pedido_multibar', { p_mesa: Number(mesa), p_lineas: lineas }),
+  mesasPanel: () => rpcPersonal('panel_mesas_multibar'),
   // Control de mesas: abrir (true) o cerrar (false) una mesa para pedidos del QR.
-  abrirMesa: (mesa, abrir) => rpcPersonal('panel_abrir_mesa', { p_mesa: Number(mesa), p_abrir: !!abrir }),
-  productos: () => rpcPersonal('panel_productos'),
-  disponible: (productoId, disponible) => rpcPersonal('panel_disponible', { p_producto: productoId, p_disponible: !!disponible }),
+  abrirMesa: (mesa, abrir) => rpcPersonal('panel_abrir_mesa_multibar', { p_mesa: Number(mesa), p_abrir: !!abrir }),
+  productos: () => rpcPersonal('panel_productos_multibar'),
+  disponible: (productoId, disponible) => rpcPersonal('panel_disponible_multibar', { p_producto: productoId, p_disponible: !!disponible }),
   // Solo admin:
-  guardarProducto: (datos) => rpcPersonal('admin_guardar_producto', { p_datos: datos }),
-  usuarios: () => rpcPersonal('admin_usuarios'),
-  guardarUsuario: (datos) => rpcPersonal('admin_guardar_usuario', { p_datos: datos }),
-  mesas: () => rpcPersonal('admin_mesas'),
-  guardarMesa: (datos) => rpcPersonal('admin_guardar_mesa', { p_datos: datos }),
+  guardarProducto: (datos) => rpcPersonal('admin_guardar_producto_multibar', { p_datos: datos }),
+  usuarios: () => rpcPersonal('admin_usuarios_multibar'),
+  guardarUsuario: (datos) => rpcPersonal('admin_guardar_usuario_multibar', { p_datos: datos }),
+  mesas: () => rpcPersonal('admin_mesas_multibar'),
+  guardarMesa: (datos) => rpcPersonal('admin_guardar_mesa_multibar', { p_datos: datos }),
 };

@@ -57,27 +57,30 @@ begin
   end if;
 end $$;
 
--- Sesiones del personal: se guarda solo la huella (hash) del token.
-create table privado.sesiones (
+-- Sesiones del personal (comun: login de todos los productos): se guarda
+-- solo la huella (hash) del token.
+create table comun.sesiones (
   token_hash  bytea primary key,
-  staff_id    integer not null references comun.staff(id) on delete cascade,
+  usuario_id    integer not null references comun.usuarios(id) on delete cascade,
   created_at  timestamptz not null default now(),
   expires_at  timestamptz not null
 );
-create index sesiones_staff_idx on privado.sesiones (staff_id);
+create index sesiones_usuario_idx on comun.sesiones (usuario_id);
+alter table comun.sesiones enable row level security;
+revoke all on comun.sesiones from public, anon, authenticated;
 
 -- Enlaces para recuperar la contraseña por correo (v18). Se guarda solo la
 -- huella (hash) del enlace; vale 30 minutos y una sola vez.
-create table privado.recuperaciones (
+create table comun.recuperaciones (
   token_hash  bytea primary key,
-  staff_id    integer not null references comun.staff(id) on delete cascade,
+  usuario_id    integer not null references comun.usuarios(id) on delete cascade,
   created_at  timestamptz not null default now(),
   expires_at  timestamptz not null,
   usado_at    timestamptz
 );
-create index recuperaciones_staff_idx on privado.recuperaciones (staff_id, created_at);
-alter table privado.recuperaciones enable row level security;
-revoke all on privado.recuperaciones from public, anon, authenticated;
+create index recuperaciones_usuario_idx on comun.recuperaciones (usuario_id, created_at);
+alter table comun.recuperaciones enable row level security;
+revoke all on comun.recuperaciones from public, anon, authenticated;
 
 -- Las funciones nuevas no se pueden ejecutar desde la web salvo que se
 -- diga expresamente (por defecto Postgres deja a todo el mundo).
