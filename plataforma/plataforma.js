@@ -295,6 +295,8 @@ async function verFicha(id){
     try {
       await (pendiente ? datosPlataforma.bienvenida(email) : datosPlataforma.enlaceContrasena(email));
       toast('Correo enviado a ' + email);
+      // Vuelve a leer la ficha: si ya eligió contraseña, deja de salir «pendiente».
+      setTimeout(() => { if(location.hash === '#bar/' + b.id) verFicha(b.id); }, 1500);
     } catch(e) { fallo(e); }
     finally { btn.disabled = false; }
   }));
@@ -399,6 +401,36 @@ function verHecho(r, correo){
       <a class="btn btn-borde" href="${panel}" target="_blank" rel="noopener">Abrir panel ↗</a>
     </div>`;
 }
+
+/* Ver la contraseña al escribirla (v28): un ojo a la derecha de cada campo de
+   contraseña. Al enviar el formulario se vuelve a ocultar. */
+const OJO_ABIERTO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const OJO_CERRADO = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7c1.9 0 3.5-.5 4.9-1.3M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+function ponerOjos(){
+  document.querySelectorAll('input[type="password"]').forEach((input) => {
+    if(input.parentNode.classList.contains('con-ojo')) return;
+    const caja = document.createElement('span');
+    caja.className = 'con-ojo';
+    input.parentNode.insertBefore(caja, input);
+    caja.appendChild(input);
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'ojo';
+    const pintar = () => {
+      const visible = input.type === 'text';
+      b.innerHTML = visible ? OJO_CERRADO : OJO_ABIERTO;
+      b.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+    };
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      input.type = input.type === 'password' ? 'text' : 'password';
+      pintar();
+    });
+    if(input.form) input.form.addEventListener('submit', () => { input.type = 'password'; pintar(); });
+    pintar();
+    caja.appendChild(b);
+  });
+}
+ponerOjos();
 
 /* ---------- Arranque ---------- */
 (async function(){

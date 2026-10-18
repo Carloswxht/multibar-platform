@@ -9,7 +9,7 @@
    con ?v=N (otra dirección, así que llega la nueva). Al publicar una
    versión: subir VERSION_WEB aquí, en carta/ y panel/, los ?v= de los
    archivos y el número de version.json. */
-var VERSION_WEB = 27;
+var VERSION_WEB = 28;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -33,10 +33,10 @@ var VERSION_WEB = 27;
 <link rel="manifest" id="manifiesto" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icono-192.png">
 <link rel="apple-touch-icon" href="icono-180.png">
-<link rel="stylesheet" href="../comun/estilos.css?v=27">
+<link rel="stylesheet" href="../comun/estilos.css?v=28">
 <!-- Colores, fuentes y logo del bar (comun/aspecto.js): se pintan ya con lo
      último que se supo en este aparato (sesión, enlace o último bar). -->
-<script src="../comun/aspecto.js?v=27"></script>
+<script src="../comun/aspecto.js?v=28"></script>
 <script>
 (function(){
   function leer(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
@@ -45,7 +45,7 @@ var VERSION_WEB = 27;
   Aspecto.aplicar(info, { panel: true });
 })();
 </script>
-<link rel="stylesheet" href="panel.css?v=27">
+<link rel="stylesheet" href="panel.css?v=28">
 </head>
 <body>
 
@@ -74,7 +74,7 @@ var VERSION_WEB = 27;
     <button id="lOlvido" class="enlace-olvido" type="button">¿Has olvidado tu contraseña?</button>
     <p class="texto-suave pie-login">Acceso reservado al personal de <span id="lLocal">este bar</span>.</p>
     <p class="texto-suave firma-plataforma"><a id="lLegal" href="../legal/#privacidad" hidden>Privacidad</a><span id="lLegalSep" hidden> · </span><a class="enlace-firma" href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel digital por <b>autonomIA Lab</b></a></p>
-    <p class="version-panel-login">Panel v27</p>
+    <p class="version-panel-login">Panel v28</p>
   </form>
 </section>
 
@@ -139,6 +139,18 @@ var VERSION_WEB = 27;
     <button class="btn btn-naranja btn-ancho" type="submit">Guardar y entrar</button>
     <button id="pSalir" class="btn btn-borde btn-ancho" type="button">Salir</button>
   </form>
+</section>
+
+<!-- ============ OTRO BAR (v28) ============
+     El enlace es del panel de un bar, pero en este aparato hay abierta una
+     sesión de otro: se pregunta en vez de abrir el de la sesión sin avisar. -->
+<section id="vOtroBar" class="vista-caja" hidden>
+  <div class="caja-form">
+    <div class="titulo-seccion">OTRO BAR</div>
+    <p class="texto-suave">Este enlace es del panel de <b id="obEnlace">otro bar</b>, pero en este aparato está abierto el de <b id="obSesion">tu bar</b> (<span id="obUsuario"></span>).</p>
+    <button id="obSalir" class="btn btn-naranja btn-ancho" type="button">Salir y entrar en <span id="obEnlace2">otro bar</span></button>
+    <button id="obSeguir" class="btn btn-borde btn-ancho" type="button">Seguir en <span id="obSesion2">tu bar</span></button>
+  </div>
 </section>
 
 <!-- ============ PANEL ============ -->
@@ -245,7 +257,7 @@ var VERSION_WEB = 27;
 
   <!-- Versión y firma al final de la página, como en la carta (v24, a petición de Carlos) -->
   <footer class="pie-panel">
-    <div class="version-panel">Panel v27</div>
+    <div class="version-panel">Panel v28</div>
     <div class="firma-panel"><a href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel digital por <b>autonomIA Lab</b></a></div>
   </footer>
 
@@ -300,7 +312,7 @@ var VERSION_WEB = 27;
 
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="../comun/datos.js?v=27"></script>
-<script src="panel.js?v=27"></script>
+<script src="../comun/datos.js?v=28"></script>
+<script src="panel.js?v=28"></script>
 </body>
 </html>

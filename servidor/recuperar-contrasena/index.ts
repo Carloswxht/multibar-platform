@@ -115,7 +115,10 @@ async function mandarBienvenida(e: Enlace, enlace: string, clave: string, remite
 
 async function trabajo(email: string, bienvenida: boolean) {
   try {
-    const e = await crearEnlace(email, bienvenida);
+    let e = await crearEnlace(email, bienvenida);
+    // Si ya eligió su contraseña, la bienvenida no vale: se manda el de
+    // «contraseña nueva» (v28), así «Mandar enlace» siempre manda algo.
+    if (!(e && e.token) && bienvenida) e = await crearEnlace(email, false);
     if (e && e.token) await mandarCorreo(e);
   } catch (err) { console.error('recuperar-contrasena', err); }
 }

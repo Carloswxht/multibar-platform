@@ -440,3 +440,10 @@ html.sin-scroll, html.sin-scroll body{ overflow:hidden; }
 .foto-elegir{ display:flex; align-items:center; justify-content:center; cursor:pointer; }
 .foto-elegir.desactivado{ opacity:.5; pointer-events:none; }
 .foto-estado{ display:block; margin-top:8px; font-weight:400; color:var(--suave); }
+
+/* Ojo para ver la contraseña (v28) */
+.con-ojo{ position:relative; display:block; }
+.con-ojo input{ width:100%; padding-right:52px; }
+.ojo{ position:absolute; top:0; right:0; bottom:0; width:48px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--suave); cursor:pointer; padding:0; }
+.ojo svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.ojo:active{ color:var(--navy); }
