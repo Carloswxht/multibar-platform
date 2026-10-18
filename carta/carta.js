@@ -137,6 +137,7 @@ function buildLine(it){
   row.dataset.name = it.n.toLowerCase();
   row.dataset.key = key;
   row.innerHTML = `
+    ${it.img && !it.lab ? `<button type="button" class="li-foto" aria-label="Ver foto: ${esc(it.dn || it.n)}"><img src="${esc(it.img)}" alt="" loading="lazy" decoding="async"></button>` : ""}
     <div class="li-main">
       <div class="li-name-row">
         ${it.pop ? '<span class="li-star">★</span>' : ""}
@@ -145,22 +146,14 @@ function buildLine(it){
         ${it.lab ? "" : (it.d ? `<span class="li-sub">${esc(it.d)}</span>` : "")}
         ${it.al ? `<span class="li-allergens">${it.al.map(a => `[${esc(a)}]`).join(" ")}</span>` : ""}
       </div>
-      <div class="li-pricerow">${it.img ? `<button type="button" class="ver-btn" aria-label="Ver foto"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.6-2.2h6.8L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.6"/></svg><span>FOTO</span></button>` : ""}<span class="li-price">${money(it.p)}</span></div>
+      <div class="li-pricerow"><span class="li-price">${money(it.p)}</span></div>
     </div>
     <span class="li-connector"></span>
     <span class="li-ctrl"></span>
   `;
 
-  const vb = row.querySelector(".ver-btn");
-  if(vb){
-  const hold = e => { e.preventDefault(); try{ vb.setPointerCapture(e.pointerId); }catch(_){} vb.classList.add("on"); openPhoto(it); };
-  const rel = () => { vb.classList.remove("on"); closePhoto(); };
-  vb.addEventListener("pointerdown", hold);
-  vb.addEventListener("pointerup", rel);
-  vb.addEventListener("pointercancel", rel);
-  vb.addEventListener("lostpointercapture", rel);
-  vb.addEventListener("contextmenu", e => e.preventDefault());
-  }
+  const fb = row.querySelector(".li-foto");
+  if(fb) fb.addEventListener("click", () => abrirFicha([PRODUCTS_BY_ID[String(it.dbId)] || it]));
 
   const noteRow = document.createElement("div");
   noteRow.className = "note-row";
@@ -318,6 +311,16 @@ function renderCategories(){
           const g = document.createElement("div"); g.className = "vgroup";
           const h = document.createElement("div"); h.className = "vhead";
           h.innerHTML = '<span class="li-name">' + esc(it.dn) + '</span>' + (common && it.d ? '<span class="li-sub">' + esc(it.d) + '</span>' : "");
+          // Fotos (v26): la miniatura del grupo (Tapa / Plato…) va en su cabecera.
+          const conFoto = grp.find(x => x.img);
+          if(conFoto){
+            h.classList.add("con-foto");
+            const fb = document.createElement("button");
+            fb.type = "button"; fb.className = "li-foto"; fb.setAttribute("aria-label", "Ver foto: " + it.dn);
+            fb.innerHTML = `<img src="${esc(conFoto.img)}" alt="" loading="lazy" decoding="async">`;
+            fb.addEventListener("click", () => abrirFicha(grp.map(x => PRODUCTS_BY_ID[String(x.dbId)] || x)));
+            h.insertBefore(fb, h.firstChild);
+          }
           g.appendChild(h);
           grp.forEach(x => { const o = Object.assign({}, x, {lab: x.size + (!common && x.d ? " · " + x.d : "")}); const w = buildLine(o); g.appendChild(w); });
           wrap.appendChild(g);
@@ -861,19 +864,54 @@ async function init(){
 init();
 
 /* ---------------- FOTO DE PRODUCTO ---------------- */
-function openPhoto(it){
-  const card = document.getElementById("photoCard");
-  card.innerHTML = "";
-  if(it.img){
-    const im = document.createElement("img"); im.src = it.img; im.alt = it.n; card.appendChild(im);
-  } else {
-    const e = document.createElement("div"); e.className = "pc-empty"; e.textContent = "Foto próximamente"; card.appendChild(e);
-  }
-  const nm = document.createElement("div"); nm.className = "pc-name"; nm.textContent = it.n; card.appendChild(nm);
-  if(it.d){ const sb = document.createElement("div"); sb.className = "pc-sub"; sb.textContent = it.d; card.appendChild(sb); }
-  document.getElementById("photoModal").classList.add("open");
+/* Fotos de los productos (v26, opción ajustes.fotos): al tocar la miniatura
+   se abre la foto en grande con el nombre, la descripción y, por cada tamaño,
+   su precio y «Añadir». Se cierra tocando fuera o con la ✕. */
+const fichaEl = document.createElement("div");
+fichaEl.className = "ficha-foto";
+fichaEl.hidden = true;
+fichaEl.setAttribute("role", "dialog");
+fichaEl.setAttribute("aria-modal", "true");
+document.body.appendChild(fichaEl);
+function cerrarFicha(){ fichaEl.hidden = true; fichaEl.innerHTML = ""; }
+fichaEl.addEventListener("click", ev => { if(ev.target === fichaEl || ev.target.closest(".ff-cerrar")) cerrarFicha(); });
+document.addEventListener("keydown", ev => { if(ev.key === "Escape" && !fichaEl.hidden) cerrarFicha(); });
+function abrirFicha(items){
+  const a = items[0];
+  const foto = (items.find(x => x.img) || a).img;
+  const nombre = a.dn || a.n;
+  const desc = items.every(x => x.d === a.d) ? a.d : "";
+  fichaEl.innerHTML = `<div class="ff-caja">
+      <button type="button" class="ff-cerrar" aria-label="Cerrar">✕</button>
+      <img class="ff-img" src="${esc(foto)}" alt="${esc(nombre)}">
+      <div class="ff-texto">
+        <div class="ff-nombre">${esc(nombre)}</div>
+        ${desc ? `<div class="ff-desc">${esc(desc)}</div>` : ""}
+        ${items.map(x => `<div class="ff-fila">
+            <span class="ff-tam">${esc(x.size || "")}</span>
+            <span class="ff-precio">${money(x.p)}</span>
+            <button type="button" class="ff-anadir" data-key="${esc(String(x.dbId))}"></button>
+          </div>`).join("")}
+      </div>
+    </div>`;
+  const pintar = () => fichaEl.querySelectorAll(".ff-anadir").forEach(b => {
+    const it = PRODUCTS_BY_ID[b.dataset.key];
+    const q = cart[b.dataset.key] || 0;
+    b.disabled = bloqueado(it) || q >= MAX_UDS;
+    b.textContent = it && it.agotado ? "Agotado" : (it && it.fuera ? "Fuera de horario" : (q ? "Añadido · " + q : "Añadir"));
+    b.classList.toggle("hecho", q > 0);
+  });
+  fichaEl.querySelectorAll(".ff-anadir").forEach(b => b.addEventListener("click", () => {
+    const key = b.dataset.key;
+    if(bloqueado(PRODUCTS_BY_ID[key]) || (cart[key] || 0) >= MAX_UDS) return;
+    cart[key] = (cart[key] || 0) + 1;
+    renderControls(key);
+    pintar();
+  }));
+  pintar();
+  fichaEl.hidden = false;
+  fichaEl.querySelector(".ff-cerrar").focus({ preventScroll: true });
 }
-function closePhoto(){ document.getElementById("photoModal").classList.remove("open"); }
 
 
 

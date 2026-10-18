@@ -113,6 +113,8 @@ function textoError(codigo){
     HORARIO_NO_VALIDO: 'Revisa el horario: las horas van como 13:00 y hay que marcar al menos un día.',
     CATEGORIA_NO_VALIDA: 'No se encuentra esa sección de la carta. Recarga la página.',
     MARCA_NO_VALIDA: 'Esa etiqueta no existe.',
+    FOTO_NO_VALIDA: 'Esa foto no se ha podido usar. Prueba con otra.',
+    ERROR_SERVIDOR: 'Algo ha fallado en el servidor. Inténtalo otra vez en un momento.',
   };
   return textos[base] || ('Algo ha fallado (' + c + '). Inténtalo otra vez.');
 }
@@ -226,6 +228,31 @@ async function pedirEnlaceRecuperar(email){
   } finally { if(reloj) clearTimeout(reloj); }
   if(!r.ok) throw new ErrorDatos('HTTP_' + r.status);
 }
+/* Fotos de los productos (v26): el panel manda la foto ya recortada y reducida
+   a la función del servidor «subir-foto», que comprueba que eres admin del bar
+   y la guarda. imagen = "data:image/jpeg;base64,…" o null para quitarla.
+   Devuelve la dirección de la foto ('' si se ha quitado). */
+async function subirFotoProducto(productoId, imagen){
+  const corte = window.AbortController ? new AbortController() : null;
+  const reloj = corte ? setTimeout(() => corte.abort(), 45000) : null;
+  let r, d = {};
+  try {
+    r = await fetch(FUNCIONES_API + '/subir-foto', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+      body: JSON.stringify({ token: getAuthTokenPersonal(), producto: Number(productoId), imagen: imagen || null }),
+      signal: corte ? corte.signal : undefined,
+    });
+    try { d = await r.json(); } catch(e) { d = {}; }
+  } catch(e) {
+    throw new ErrorDatos('SIN_CONEXION');
+  } finally { if(reloj) clearTimeout(reloj); }
+  if(!r.ok){
+    if(d.codigo === 'SESION_CADUCADA') guardarLocal(CLAVE_SESION, null);
+    throw new ErrorDatos(d.codigo || ('HTTP_' + r.status));
+  }
+  return d.foto || '';
+}
+
 // Poner la contraseña nueva con el código del enlace del correo. Devuelve { email }.
 function restablecerPassword(token, nueva){
   return apiRpc('personal_restablecer', { p_token: String(token || ''), p_nueva: nueva });
@@ -272,6 +299,8 @@ const datosPanel = {
   // Solo admin:
   // Carta por horario (v25): pestañas con su horario, y guardar el de una.
   horarios: () => rpcPersonal('admin_horarios_multibar'),
+  // Fotos (v26): subir (dataURL JPEG) o quitar (null) la foto de un producto.
+  subirFoto: (productoId, imagen) => subirFotoProducto(productoId, imagen),
   guardarHorario: (categoria, horario) => rpcPersonal('admin_guardar_horario_multibar', { p_categoria: categoria, p_horario: horario }),
   guardarProducto: (datos) => rpcPersonal('admin_guardar_producto_multibar', { p_datos: datos }),
   usuarios: () => rpcPersonal('admin_usuarios_multibar'),

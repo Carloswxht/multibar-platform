@@ -981,6 +981,85 @@ function editarProducto(p){
     toast('Producto guardado');
     cargarProductos();
   });
+  if(opcionBar('fotos')) pintarFotoProducto(nuevo ? null : p);
+}
+
+/* ---------------- FOTOS DE LOS PRODUCTOS (v26, admin, opción ajustes.fotos) ----------------
+   En la ventana de editar un producto: hacer la foto con el móvil o elegirla
+   de la galería, cambiarla o quitarla. Se guarda al momento (aparte del botón
+   «Guardar»). El móvil la recorta en cuadrado y la deja en 800 px (JPEG, unos
+   100–200 KB) antes de mandarla a la función del servidor «subir-foto». */
+function pintarFotoProducto(p){
+  const caja = document.createElement('div');
+  caja.className = 'campo foto-producto';
+  $('modalCampos').appendChild(caja);
+  if(!p){
+    caja.innerHTML = '<span>Foto en la carta</span><small>Guarda el producto y vuelve a abrirlo para añadirle una foto.</small>';
+    return;
+  }
+  const pintar = (estadoTxt) => {
+    caja.innerHTML = `<span>Foto en la carta</span>
+      <div class="foto-fila">
+        <div class="foto-previa">${p.foto ? `<img src="${esc(p.foto)}" alt="">` : 'Sin foto'}</div>
+        <div class="foto-botones">
+          <label class="btn btn-borde foto-elegir">${p.foto ? 'Cambiar foto' : 'Añadir foto'}<input type="file" accept="image/*" hidden></label>
+          ${p.foto ? '<button type="button" class="btn btn-borde foto-quitar">Quitar foto</button>' : ''}
+        </div>
+      </div>
+      <small class="foto-estado">${esc(estadoTxt || 'Mejor una foto real del plato, con buena luz. Sale recortada en cuadrado.')}</small>`;
+    caja.querySelector('input[type=file]').addEventListener('change', async (ev) => {
+      const archivo = ev.target.files && ev.target.files[0];
+      if(!archivo) return;
+      ocupado(true, 'Preparando la foto…');
+      try {
+        const imagen = await reducirFoto(archivo);
+        ocupado(true, 'Subiendo la foto…');
+        p.foto = await datosPanel.subirFoto(p.id, imagen);
+        toast('Foto guardada');
+        pintar('Foto guardada. Ya sale en la carta.');
+      } catch(e) {
+        if(e.codigo === 'SESION_CADUCADA'){ cerrarModal(); return volverAlLogin(e.message); }
+        pintar(e.message || 'No se ha podido subir la foto.');
+      }
+    });
+    const q = caja.querySelector('.foto-quitar');
+    if(q) q.addEventListener('click', async () => {
+      ocupado(true, 'Quitando la foto…');
+      try { p.foto = await datosPanel.subirFoto(p.id, null); toast('Foto quitada'); pintar('Foto quitada.'); }
+      catch(e) {
+        if(e.codigo === 'SESION_CADUCADA'){ cerrarModal(); return volverAlLogin(e.message); }
+        pintar(e.message);
+      }
+    });
+  };
+  const ocupado = (si, txt) => {
+    caja.querySelectorAll('button, input').forEach(x => { x.disabled = si; });
+    caja.querySelector('.foto-elegir').classList.toggle('desactivado', si);
+    caja.querySelector('.foto-estado').textContent = txt;
+  };
+  pintar();
+}
+
+// Recorta la foto en cuadrado (el centro) y la deja en 800 × 800 px, JPEG.
+function reducirFoto(archivo){
+  return new Promise((ok, mal) => {
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const lado = Math.min(img.naturalWidth, img.naturalHeight);
+        if(!lado) throw new Error('La foto no se puede leer.');
+        const T = Math.min(800, lado);
+        const lienzo = document.createElement('canvas');
+        lienzo.width = lienzo.height = T;
+        lienzo.getContext('2d').drawImage(img, (img.naturalWidth - lado) / 2, (img.naturalHeight - lado) / 2, lado, lado, 0, 0, T, T);
+        ok(lienzo.toDataURL('image/jpeg', 0.82));
+      } catch(e) { mal(e); }
+      finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('Esa foto no se puede leer. Prueba con otra (JPG o PNG).')); };
+    img.src = url;
+  });
 }
 
 /* =====================================================================

@@ -342,7 +342,8 @@ begin
       select jsonb_agg(jsonb_build_object(
         'dbId', p.id, 'n', p.name, 'dn', p.display_name, 'd', p.description,
         'p', p.price, 'size', p.size, 'only', p.only_size, 'sec', p.section,
-        'pop', p.featured, 'al', to_jsonb(p.allergens), 'img', p.photo,
+        'pop', p.featured, 'al', to_jsonb(p.allergens),
+        'img', case when coalesce((b.ajustes->>'fotos')::boolean, false) then p.photo else '' end,
         'marca', case when coalesce((b.ajustes->>'destacados')::boolean, false) then p.marca end,
         'agotado', not p.available) order by p.sort_order, p.id)
       from productos_multibar p where p.negocio_id = c.negocio_id and p.category_id = c.id and p.visible), '[]'::jsonb)
@@ -797,7 +798,7 @@ begin
             'descripcion', p.description, 'tamano', p.size, 'solo_tamano', p.only_size,
             'seccion', p.section, 'precio', p.price, 'disponible', p.available,
             'visible', p.visible, 'destacado', p.featured, 'orden', p.sort_order,
-            'marca', p.marca,
+            'marca', p.marca, 'foto', p.photo,
             'actualizado', p.updated_at, 'actualizado_por', p.updated_by)
             order by c.sort_order, p.sort_order, p.id), '[]'::jsonb)
             from productos_multibar p join categorias_multibar c on c.negocio_id = p.negocio_id and c.id = p.category_id
@@ -844,6 +845,37 @@ end $$;
 -- =====================================================================
 -- VENTANILLAS DEL ADMINISTRADOR (de su bar)
 -- =====================================================================
+
+-- Fotos de los productos (v26, opción ajustes.fotos). Solo la llama la
+-- función del servidor «subir-foto» (con la clave secreta): la web no puede
+-- poner la dirección que quiera. Con p_url null solo comprueba que el token
+-- es de un admin de ese bar con la opción encendida (antes de subir nada);
+-- con una dirección de la carpeta «fotos» de su bar la guarda; con '' la quita.
+create or replace function public.foto_producto_multibar(p_token text, p_producto integer, p_url text)
+returns jsonb
+language plpgsql security definer
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+declare s usuarios_multibar;
+begin
+  s := privado.exigir_rol(p_token, array['admin']);
+  if not coalesce((select (ajustes->>'fotos')::boolean from bares_multibar where id = s.negocio_id), false) then
+    raise exception 'FUNCION_NO_ACTIVA';
+  end if;
+  perform 1 from productos_multibar where id = p_producto and negocio_id = s.negocio_id;
+  if not found then
+    raise exception 'PRODUCTO_NO_VALIDO';
+  end if;
+  if p_url is null then
+    return jsonb_build_object('negocio', s.negocio_id);
+  end if;
+  if p_url <> '' and p_url !~ ('^https://[a-z0-9.-]+/storage/v1/object/public/fotos/' || s.negocio_id || '/' || p_producto || '-[a-z0-9]{6,40}\.jpg$') then
+    raise exception 'FOTO_NO_VALIDA';
+  end if;
+  update productos_multibar set photo = p_url, updated_at = now(), updated_by = s.name
+   where id = p_producto and negocio_id = s.negocio_id;
+  return jsonb_build_object('negocio', s.negocio_id, 'foto', p_url);
+end $$;
 
 -- Carta por horario (v25): las pestañas de su bar con su horario y si ahora están abiertas.
 create or replace function public.admin_horarios_multibar(p_token text)
@@ -1428,6 +1460,7 @@ to anon, authenticated;
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'service_role') then
     grant execute on function public.recuperar_crear(text) to service_role;
+    grant execute on function public.foto_producto_multibar(text, integer, text) to service_role;
   end if;
 end $$;
 
