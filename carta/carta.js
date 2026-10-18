@@ -347,7 +347,8 @@ async function adjustSentItem(round, line, delta){
   const lineas = round.lines
     .map(l => ({ producto: Number(l.key), cantidad: l === line ? nueva : l.qty, nota: l.note || "" }))
     .filter(l => l.cantidad > 0);
-  if(lineas.length === 0 && !window.confirm("¿Anular el pedido " + round.num + "? Se borra y no llega a la barra.")) return;
+  const otrasPartes = rounds.some(r => r.num === round.num && r.orderId !== round.orderId);
+  if(lineas.length === 0 && !otrasPartes && !window.confirm("¿Anular el pedido " + round.num + "? Se borra y no llega a la barra.")) return;
   editando = true;
   panelBody.classList.add("ocupado");
   try {
@@ -417,20 +418,48 @@ const panelBody = document.getElementById("panelBody");
 const panelTotal = document.getElementById("panelTotal");
 
 let showAllRounds = false;
-function appendRound(round, withDivider){
+/* Con barra y cocina separadas, un pedido llega a la base en dos partes
+   (misma ronda). Al cliente eso no le importa (Carlos, v21): el tique junta
+   las partes de cada ronda en un solo «PEDIDO N», como lo envió. Cada línea
+   se sigue cambiando en su parte. Estado del pedido: ENVIADO si alguna parte
+   lo está, EN PREPARACIÓN si alguna lo está, SERVIDO cuando lo están todas. */
+function pedidosDelTique(lista){
+  const grupos = [];
+  lista.forEach(r => {
+    let g = grupos.find(x => x.num === r.num);
+    if(!g){ g = { num: r.num, partes: [] }; grupos.push(g); }
+    g.partes.push(r);
+  });
+  grupos.forEach(g => {
+    g.partes.sort((a, b) => a.orderId - b.orderId); // siempre en el mismo orden
+    g.status = g.partes.some(r => r.status === 'enviado') ? 'enviado'
+      : (g.partes.some(r => r.status === 'en_preparacion') ? 'en_preparacion' : 'servido');
+  });
+  return grupos;
+}
+// Parte que se puede cambiar durante más tiempo (para la cuenta atrás), o null.
+function parteEditable(g){
+  return g.partes.filter(roundEditable).sort((a, b) => b.editableHasta - a.editableHasta)[0] || null;
+}
+function appendRound(g, withDivider){
   if(withDivider) panelBody.appendChild(document.createElement("hr")).className = "round-divider";
-  const editable = roundEditable(round);
+  const editable = parteEditable(g);
   const label = document.createElement("div");
-  const est = round.status === 'servido' ? "est-servido" : (round.status === 'en_preparacion' ? "est-prep" : "est-enviado");
+  const est = g.status === 'servido' ? "est-servido" : (g.status === 'en_preparacion' ? "est-prep" : "est-enviado");
   label.className = "round-label " + est + (editable ? " editable" : "");
-  label.innerHTML = `<span>PEDIDO ${round.num}${round.destino ? " · " + round.destino.toUpperCase() : ""} · ${roundLabel(round)}</span>`
-    + (editable ? `<span class="cuenta" data-pedido="${round.orderId}">puedes cambiarlo ${cuentaAtras(round)}</span>` : "");
+  label.innerHTML = `<span>PEDIDO ${g.num} · ${roundLabel(g)}</span>`
+    + (editable ? `<span class="cuenta" data-ronda="${g.num}">puedes cambiarlo ${cuentaAtras(editable)}</span>` : "");
   panelBody.appendChild(label);
-  round.lines.forEach(l => panelBody.appendChild(buildCartRow(l, l.qty === 0 ? "quitado" : (editable ? "sent" : "locked"), round)));
+  g.partes.forEach(round => {
+    const sePuede = roundEditable(round);
+    round.pintadaEditable = sePuede;
+    round.lines.forEach(l => panelBody.appendChild(buildCartRow(l, l.qty === 0 ? "quitado" : (sePuede ? "sent" : "locked"), round)));
+  });
 }
 
 function renderPanel(lines, total){
   panelBody.innerHTML = "";
+  rounds.forEach(r => { r.pintadaEditable = false; });
 
   if(rounds.length === 0 && lines.length === 0){
     panelBody.innerHTML = `<div class="cart-empty">TIQUE VACÍO<br>${esc(Aspecto.texto("tique_vacio"))}</div>`;
@@ -440,19 +469,20 @@ function renderPanel(lines, total){
 
   // Visibles: pedidos enviados o en preparación y el que se está escogiendo.
   // Ocultos tras "Ver pedidos anteriores": los ya servidos.
-  let visible = rounds.filter(r => r.status !== 'servido');
-  if(visible.length === 0 && lines.length === 0 && rounds.length > 0){
-    visible = [rounds[rounds.length - 1]]; // si todo está servido, se enseña el último para que el tique no quede vacío
+  const pedidos = pedidosDelTique(rounds);
+  let visible = pedidos.filter(g => g.status !== 'servido');
+  if(visible.length === 0 && lines.length === 0 && pedidos.length > 0){
+    visible = [pedidos[pedidos.length - 1]]; // si todo está servido, se enseña el último para que el tique no quede vacío
   }
-  const hidden = rounds.length - visible.length;
+  const hidden = pedidos.length - visible.length;
   if(showAllRounds){
-    rounds.forEach((round, idx) => appendRound(round, idx > 0));
+    pedidos.forEach((g, idx) => appendRound(g, idx > 0));
   } else {
-    visible.forEach((round, idx) => appendRound(round, idx > 0));
+    visible.forEach((g, idx) => appendRound(g, idx > 0));
   }
 
   if(lines.length > 0){
-    if((showAllRounds ? rounds.length : visible.length) > 0) panelBody.appendChild(document.createElement("hr")).className = "round-divider";
+    if((showAllRounds ? pedidos.length : visible.length) > 0) panelBody.appendChild(document.createElement("hr")).className = "round-divider";
     const label = document.createElement("div");
     label.className = "round-label current";
     const siguiente = rounds.reduce((m, r) => Math.max(m, r.num || 0), 0) + 1;
@@ -495,6 +525,8 @@ function buildCartRow(l, mode, round){
     stepper.querySelector(".minus").addEventListener("click", () => adjustSentItem(round, l, -1));
     plusBtn.addEventListener("click", () => adjustSentItem(round, l, 1));
     row.appendChild(stepper);
+    // El precio, al final del renglón también en las líneas con − / + (v21)
+    row.appendChild(row.querySelector(".cr-price"));
   }
   return row;
 }
@@ -520,12 +552,15 @@ setInterval(livePoll, 6000);
 // Cuenta atrás de "puedes cambiarlo m:ss"; al llegar a 0 se bloquea el pedido en pantalla.
 setInterval(() => {
   let caducado = false;
-  rounds.forEach(r => {
-    const el = panelBody.querySelector('.cuenta[data-pedido="' + r.orderId + '"]');
+  pedidosDelTique(rounds).forEach(g => {
+    const el = panelBody.querySelector('.cuenta[data-ronda="' + g.num + '"]');
     if(!el) return;
-    if(roundEditable(r)) el.textContent = "puedes cambiarlo " + cuentaAtras(r);
+    const r = parteEditable(g);
+    if(r) el.textContent = "puedes cambiarlo " + cuentaAtras(r);
     else caducado = true;
   });
+  // Una parte que deja de poderse cambiar mientras la otra sigue: se repinta para bloquear sus líneas.
+  if(rounds.some(r => r.pintadaEditable && !roundEditable(r))) caducado = true;
   if(caducado && !editando) updateCartBar();
 }, 1000);
 
@@ -658,12 +693,10 @@ async function sendOrder(){
     // Con barra y cocina separadas, el pedido llega en dos partes (v15).
     const partes = Array.isArray(p.partes) && p.partes.length ? p.partes : (p.id ? [p] : []);
     partes.forEach(x => rounds.push(aRonda(x)));
-    const destinos = partes.map(x => x.destino).filter(Boolean);
-    const aQuien = destinos.length > 1 ? "a la barra y a la cocina" : (destinos[0] === "cocina" ? "a la cocina" : "a la barra");
     vaciarCarrito();
     closePanel();
     updateCartBar();
-    aviso("PEDIDO ENVIADO", "Pedido " + p.ronda + " enviado " + aQuien + " (" + MESA.nombre + "). Durante 3 minutos puedes cambiarlo desde «Ver tique».", true);
+    aviso("PEDIDO ENVIADO", "Pedido " + p.ronda + " enviado (" + MESA.nombre + "). Durante 3 minutos puedes cambiarlo desde «Ver tique».", true);
     return;
   }
   if(fallo.codigo === 'AGOTADO'){ ultimaCarta = 0; await refrescarCarta(); }

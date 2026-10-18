@@ -9,7 +9,7 @@
    con ?v=N (otra dirección, así que llega la nueva). Al publicar una
    versión: subir VERSION_WEB aquí, en carta/ y panel/, los ?v= de los
    archivos y el número de version.json. */
-var VERSION_WEB = 20;
+var VERSION_WEB = 21;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -33,10 +33,10 @@ var VERSION_WEB = 20;
 <link rel="manifest" id="manifiesto" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icono-192.png">
 <link rel="apple-touch-icon" href="icono-180.png">
-<link rel="stylesheet" href="../comun/estilos.css?v=20">
+<link rel="stylesheet" href="../comun/estilos.css?v=21">
 <!-- Colores, fuentes y logo del bar (comun/aspecto.js): se pintan ya con lo
      último que se supo en este aparato (sesión, enlace o último bar). -->
-<script src="../comun/aspecto.js?v=20"></script>
+<script src="../comun/aspecto.js?v=21"></script>
 <script>
 (function(){
   function leer(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
@@ -45,7 +45,7 @@ var VERSION_WEB = 20;
   Aspecto.aplicar(info, { panel: true });
 })();
 </script>
-<link rel="stylesheet" href="panel.css?v=20">
+<link rel="stylesheet" href="panel.css?v=21">
 </head>
 <body>
 
@@ -74,7 +74,7 @@ var VERSION_WEB = 20;
     <button id="lOlvido" class="enlace-olvido" type="button">¿Has olvidado tu contraseña?</button>
     <p class="texto-suave pie-login">Acceso reservado al personal de <span id="lLocal">este bar</span>.</p>
     <p class="texto-suave firma-plataforma"><a id="lLegal" href="../legal/#privacidad" hidden>Privacidad</a><span id="lLegalSep" hidden> · </span><a class="enlace-firma" href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel por <b>autonomIA Lab</b></a></p>
-    <p class="version-panel-login">Panel v20</p>
+    <p class="version-panel-login">Panel v21</p>
   </form>
 </section>
 
@@ -233,7 +233,7 @@ var VERSION_WEB = 20;
 
   <!-- Barra de abajo con el botón de menú -->
   <div class="barra-abajo">
-    <span class="version-panel">Panel v20</span>
+    <span class="version-panel">Panel v21</span>
     <button class="boton-menu" id="abrirMenu" type="button" aria-label="Menú" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
     </button>
@@ -283,7 +283,7 @@ var VERSION_WEB = 20;
 
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="../comun/datos.js?v=20"></script>
-<script src="panel.js?v=20"></script>
+<script src="../comun/datos.js?v=21"></script>
+<script src="panel.js?v=21"></script>
 </body>
 </html>
