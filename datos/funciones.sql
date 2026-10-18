@@ -1290,43 +1290,9 @@ do $$ begin
   end if;
 end $$;
 
--- =====================================================================
--- PUENTES TEMPORALES (paso 2, 18 oct): los nombres viejos de la v18
--- ---------------------------------------------------------------------
--- La web v18 llama a carta_menu, panel_estado… y la v19 a carta_menu_multibar,
--- panel_estado_multibar… Mientras queden móviles con la v18 guardada, cada
--- nombre viejo es un «puente» de una línea que llama al nuevo con los mismos
--- datos: no tiene lógica propia. La lista NO se escribe a mano: sale de la
--- base (cada función pública acabada en _multibar tiene su puente, con los
--- mismos parámetros, el mismo resultado y solo si la web puede usar la nueva).
--- Todos llevan el comentario «puente_v18» para poder listarlos y quitarlos
--- juntos cuando ya nadie los use (eso lo hace Carlos en el SQL Editor).
--- =====================================================================
-do $$
-declare f record; v_viejo text; v_llamada text;
-begin
-  for f in
-    select p.oid, p.proname, p.pronargs
-      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-     where n.nspname = 'public' and p.proname like '%\_multibar'
-       and has_function_privilege('anon', p.oid, 'execute')
-     order by p.proname
-  loop
-    v_viejo := regexp_replace(f.proname, '_multibar$', '');
-    select coalesce(string_agg('$' || i, ', ' order by i), '') into v_llamada
-      from generate_series(1, f.pronargs) i;
-    execute format(
-      'create or replace function public.%I(%s) returns %s language sql security invoker '
-      'set search_path = pg_catalog, pg_temp as $p$ select public.%I(%s) $p$',
-      v_viejo, pg_get_function_arguments(f.oid), pg_get_function_result(f.oid), f.proname, v_llamada);
-    execute format('comment on function public.%I(%s) is %L',
-      v_viejo, pg_get_function_identity_arguments(f.oid), 'puente_v18 → public.' || f.proname);
-    execute format('revoke execute on function public.%I(%s) from public',
-      v_viejo, pg_get_function_identity_arguments(f.oid));
-    execute format('grant execute on function public.%I(%s) to anon, authenticated',
-      v_viejo, pg_get_function_identity_arguments(f.oid));
-  end loop;
-end $$;
+-- Los puentes temporales de la v18 (nombres viejos → …_multibar) se
+-- quitaron el 18 oct: ver datos/cambios/2026-10-18-quitar-puentes-v18.sql
+-- (el código que los creaba está en 2026-10-18-paso-2-comun-multibar.sql).
 
 -- Las tablas siguen cerradas a la web (ver esquema.sql): ni lectura ni escritura.
 revoke all on all tables in schema public, comun, multibar, autonomialab from public, anon, authenticated;
