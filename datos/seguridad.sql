@@ -60,7 +60,7 @@ end $$;
 -- Sesiones del personal: se guarda solo la huella (hash) del token.
 create table privado.sesiones (
   token_hash  bytea primary key,
-  staff_id    integer not null references public.staff(id) on delete cascade,
+  staff_id    integer not null references comun.staff(id) on delete cascade,
   created_at  timestamptz not null default now(),
   expires_at  timestamptz not null
 );
@@ -70,7 +70,7 @@ create index sesiones_staff_idx on privado.sesiones (staff_id);
 -- huella (hash) del enlace; vale 30 minutos y una sola vez.
 create table privado.recuperaciones (
   token_hash  bytea primary key,
-  staff_id    integer not null references public.staff(id) on delete cascade,
+  staff_id    integer not null references comun.staff(id) on delete cascade,
   created_at  timestamptz not null default now(),
   expires_at  timestamptz not null,
   usado_at    timestamptz

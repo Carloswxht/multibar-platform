@@ -1,0 +1,7 @@
+# Nunca subir secretos ni claves al repositorio (la web es pública)
+.env
+.env.*
+*.pem
+*.key
+secretos/
+node_modules/

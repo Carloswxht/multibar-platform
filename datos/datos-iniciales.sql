@@ -9,6 +9,9 @@
 -- ---------------- EL BAR ----------------
 -- Su nombre se escribe solo aquí (y en la copia de reserva
 -- datos/bares/lamardegambas/bar.json): carta, panel y tique lo leen de la base.
+-- Las tablas están en las carpetas «comun» y «multibar» (17 oct).
+set search_path = multibar, comun, public;
+
 insert into bares (id, slug, nombre, subtitulo, ajustes) overriding system value values
   (1, 'lamardegambas', 'La Mar de Gambas', 'Cervecerías · Desde 2007', jsonb_build_object(
     'pie', jsonb_build_array(

@@ -20,11 +20,11 @@
 
 -- El bar de un slug (o error si no existe o no está activo).
 create or replace function privado.bar_de_slug(p_bar text)
-returns public.bares
+returns comun.bares
 language plpgsql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare b public.bares;
+declare b comun.bares;
 begin
   select * into b from bares where slug = lower(btrim(coalesce(p_bar, ''))) and activo;
   if not found then
@@ -37,7 +37,7 @@ end $$;
 create or replace function privado.bar_json(p_bar_id integer)
 returns jsonb
 language sql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   select jsonb_build_object('slug', slug, 'nombre', nombre, 'subtitulo', subtitulo, 'ajustes', ajustes)
     from bares where id = p_bar_id
@@ -46,19 +46,19 @@ $$;
 -- Quién es el usuario del personal de este token (o error si no vale).
 -- Si su bar está desactivado, la sesión deja de valer.
 create or replace function privado.staff_de_token(p_token text)
-returns public.staff
+returns comun.staff
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare s public.staff;
+declare s comun.staff;
 begin
   if p_token is null or length(p_token) <> 64 then
     raise exception 'SESION_CADUCADA';
   end if;
   select st.* into s
     from privado.sesiones se
-    join public.staff st on st.id = se.staff_id
-    join public.bares b on b.id = st.bar_id
+    join comun.staff st on st.id = se.staff_id
+    join comun.bares b on b.id = st.bar_id
    where se.token_hash = privado.digest(p_token, 'sha256')
      and se.expires_at > now()
      and st.active and b.activo;
@@ -70,11 +70,11 @@ end $$;
 
 -- Igual, pero exige uno de los roles indicados.
 create or replace function privado.exigir_rol(p_token text, p_roles text[])
-returns public.staff
+returns comun.staff
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare s public.staff;
+declare s comun.staff;
 begin
   s := privado.staff_de_token(p_token);
   if not (s.role = any (p_roles)) then
@@ -91,7 +91,7 @@ end $$;
 create or replace function privado.numerar_pedido()
 returns trigger
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare v_zona text; v_continua boolean; v_dia date;
 begin
@@ -117,15 +117,15 @@ begin
   return new;
 end $$;
 
-drop trigger if exists orders_numero on orders;
-create trigger orders_numero before insert on orders
+drop trigger if exists orders_numero on multibar.orders;
+create trigger orders_numero before insert on multibar.orders
   for each row execute function privado.numerar_pedido();
 
 -- Un pedido con sus líneas, en el formato que usan la carta y el panel.
 create or replace function privado.pedido_json(p_id bigint)
 returns jsonb
 language sql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   select jsonb_build_object(
     'id', o.id,
@@ -166,7 +166,7 @@ $$;
 create or replace function privado.guardar_lineas(p_pedido bigint, p_lineas jsonb, p_previas jsonb default '{}'::jsonb)
 returns numeric
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
   l jsonb; p products; v_cant int; v_nota text; v_total numeric := 0; v_bar int;
@@ -212,7 +212,7 @@ end $$;
 create or replace function privado.crear_partes(p_bar integer, p_mesa integer, p_ronda integer, p_dispositivo uuid, p_lineas jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
   v_separa boolean; g record; v_id bigint; v_primera bigint; v_total numeric; v_res jsonb := '[]'::jsonb;
@@ -250,7 +250,7 @@ end $$;
 create or replace function privado.auto_aceptar()
 returns void
 language sql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   update orders
      set status = 'en_preparacion', auto_aceptado = true, received_at = now(), received_by = null
@@ -262,7 +262,7 @@ $$;
 create or replace function privado.limpiar()
 returns void
 language sql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   delete from orders where created_at < now() - interval '30 days';
   update order_items set note = ''
@@ -280,7 +280,7 @@ $$;
 create or replace function public.carta_bar(p_bar text)
 returns jsonb
 language plpgsql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare b bares;
 begin
@@ -292,7 +292,7 @@ end $$;
 create or replace function public.carta_menu(p_bar text)
 returns jsonb
 language plpgsql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare b bares;
 begin
@@ -316,7 +316,7 @@ end $$;
 create or replace function public.carta_mesa(p_bar text, p_mesa integer, p_codigo text)
 returns jsonb
 language plpgsql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare b bares;
 begin
@@ -332,7 +332,7 @@ end $$;
 create or replace function public.crear_pedido(p_bar text, p_mesa integer, p_codigo text, p_dispositivo uuid, p_lineas jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
   b bares; v_partes jsonb; v_ronda int; v_hasta timestamptz;
@@ -386,7 +386,7 @@ end $$;
 create or replace function public.editar_pedido(p_pedido bigint, p_dispositivo uuid, p_lineas jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
   o orders; v_previas jsonb; v_total numeric;
@@ -417,7 +417,7 @@ end $$;
 create or replace function public.mis_pedidos(p_bar text, p_dispositivo uuid)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare b bares;
 begin
@@ -440,7 +440,7 @@ end $$;
 create or replace function public.personal_entrar(p_email text, p_password text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
   s staff; v_token text;
@@ -482,7 +482,7 @@ end $$;
 create or replace function public.personal_yo(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -496,7 +496,7 @@ end $$;
 create or replace function public.personal_salir(p_token text)
 returns void
 language sql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   delete from privado.sesiones where token_hash = privado.digest(coalesce(p_token, ''), 'sha256');
 $$;
@@ -505,7 +505,7 @@ $$;
 create or replace function public.personal_cambiar_password(p_token text, p_actual text, p_nueva text)
 returns void
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -535,7 +535,7 @@ end $$;
 create or replace function public.panel_pedidos(p_token text, p_desde timestamptz default null)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_desde timestamptz; v_zona text;
 begin
@@ -555,7 +555,7 @@ end $$;
 create or replace function public.panel_marcar(p_token text, p_pedido bigint, p_estado text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; o orders;
 begin
@@ -597,7 +597,7 @@ end $$;
 create or replace function public.panel_crear_pedido(p_token text, p_mesa integer, p_lineas jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_partes jsonb;
 begin
@@ -615,7 +615,7 @@ end $$;
 create or replace function public.panel_mesas(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -630,7 +630,7 @@ end $$;
 create or replace function public.panel_abrir_mesa(p_token text, p_mesa integer, p_abrir boolean)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_horas int; r jsonb;
 begin
@@ -657,7 +657,7 @@ end $$;
 create or replace function public.panel_modificar_pedido(p_token text, p_pedido bigint, p_cambios jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare
   s staff; o orders; l jsonb; p products; v_cant int; v_nota text;
@@ -729,7 +729,7 @@ end $$;
 create or replace function public.panel_productos(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -749,7 +749,7 @@ end $$;
 create or replace function public.panel_disponible(p_token text, p_producto integer, p_disponible boolean)
 returns void
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -771,7 +771,7 @@ end $$;
 create or replace function public.admin_guardar_producto(p_token text, p_datos jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_id int; d jsonb := coalesce(p_datos, '{}'::jsonb);
 begin
@@ -823,7 +823,7 @@ end $$;
 create or replace function public.admin_usuarios(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -841,7 +841,7 @@ end $$;
 create or replace function public.admin_guardar_usuario(p_token text, p_datos jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_id int; d jsonb := coalesce(p_datos, '{}'::jsonb); v_pass text; v_email text;
 begin
@@ -900,7 +900,7 @@ end $$;
 create or replace function public.admin_mesas(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -915,7 +915,7 @@ end $$;
 create or replace function public.admin_guardar_mesa(p_token text, p_datos jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; d jsonb := coalesce(p_datos, '{}'::jsonb); v_id int;
 begin
@@ -946,7 +946,7 @@ end $$;
 create or replace function public.carta_aviso(p_bar text, p_mesa integer, p_codigo text, p_tipo text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare b bares; v_hasta timestamptz;
 begin
@@ -989,7 +989,7 @@ end $$;
 create or replace function privado.avisos_json(p_bar integer)
 returns jsonb
 language sql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'mesa', a.mesa_id, 'mesa_nombre', m.name,
                     'tipo', a.tipo, 'creado', a.created_at) order by a.created_at), '[]'::jsonb)
@@ -1003,7 +1003,7 @@ $$;
 create or replace function public.panel_estado(p_token text, p_desde timestamptz default null)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -1016,7 +1016,7 @@ end $$;
 create or replace function public.panel_atender_aviso(p_token text, p_aviso bigint)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -1031,7 +1031,7 @@ end $$;
 create or replace function privado.desde_hoy(p_bar integer)
 returns timestamptz
 language sql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   select least(date_trunc('day', now() at time zone zona_horaria) at time zone zona_horaria,
                now() - interval '12 hours')
@@ -1042,7 +1042,7 @@ $$;
 create or replace function privado.lineas_juntas(p_pedidos bigint[])
 returns jsonb
 language sql stable security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
   select coalesce(jsonb_agg(jsonb_build_object('nombre', x.nombre, 'cantidad', x.cant,
                     'precio', x.precio, 'importe', x.importe) order by x.primera), '[]'::jsonb)
@@ -1061,7 +1061,7 @@ $$;
 create or replace function public.panel_cuentas(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_desde timestamptz;
 begin
@@ -1095,7 +1095,7 @@ end $$;
 create or replace function public.panel_cobrar(p_token text, p_mesa integer, p_pedidos jsonb)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_n int; v_total numeric; v_ids bigint[];
 begin
@@ -1121,7 +1121,7 @@ end $$;
 create or replace function public.panel_cobrar_mesa(p_token text, p_mesa integer)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -1135,7 +1135,7 @@ end $$;
 create or replace function public.panel_cobradas(p_token text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff;
 begin
@@ -1154,7 +1154,7 @@ end $$;
 create or replace function public.panel_reabrir_cuenta(p_token text, p_mesa integer, p_cuando timestamptz)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; v_n int;
 begin
@@ -1182,7 +1182,7 @@ end $$;
 create or replace function public.recuperar_crear(p_email text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare s staff; b bares; v_token text;
 begin
@@ -1211,7 +1211,7 @@ end $$;
 create or replace function public.personal_restablecer(p_token text, p_nueva text)
 returns jsonb
 language plpgsql security definer
-set search_path = public, privado, pg_temp
+set search_path = public, comun, multibar, privado, pg_temp
 as $$
 declare r privado.recuperaciones; v_email text;
 begin
@@ -1290,4 +1290,5 @@ do $$ begin
 end $$;
 
 -- Las tablas siguen cerradas a la web (ver esquema.sql): ni lectura ni escritura.
-revoke all on all tables in schema public from public, anon, authenticated;
+revoke all on all tables in schema public, comun, multibar, autonomialab from public, anon, authenticated;
+revoke all on schema comun, multibar, autonomialab from public, anon, authenticated;
