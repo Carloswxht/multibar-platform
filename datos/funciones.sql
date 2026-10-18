@@ -1264,6 +1264,40 @@ as $$
            group by i.product_name, i.unit_price) x
 $$;
 
+-- Lo pedido en tu mesa (v31, opción pedido_mesa): lo que lleva pedido hoy
+-- toda la mesa, de todos los móviles, sin cobrar (lo mismo que su cuenta en
+-- el panel, servido o no). Con el código del QR; sin decir quién pidió qué.
+-- Con el control de mesas y la mesa cerrada no se enseña nada.
+create or replace function public.carta_pedido_mesa_multibar(p_bar text, p_mesa integer, p_codigo text)
+returns jsonb
+language plpgsql stable security definer
+set search_path = public, comun, multibar, privado, pg_temp
+as $$
+declare b bares_multibar; v_hasta timestamptz; v_ids bigint[];
+begin
+  b := privado.bar_de_slug(p_bar);
+  if not coalesce((b.ajustes->>'pedido_mesa')::boolean, false) then
+    raise exception 'FUNCION_NO_ACTIVA';
+  end if;
+  select abierta_hasta into v_hasta from mesas_multibar
+   where negocio_id = b.id and id = p_mesa and active and code = p_codigo;
+  if not found then
+    raise exception 'MESA_NO_VALIDA';
+  end if;
+  if coalesce((b.ajustes->>'control_mesas')::boolean, false)
+     and (v_hasta is null or v_hasta <= now()) then
+    return jsonb_build_object('pedidos', 0, 'total', 0, 'lineas', '[]'::jsonb);
+  end if;
+  select coalesce(array_agg(o.id order by o.id), '{}') into v_ids
+    from pedidos_multibar o
+   where o.negocio_id = b.id and o.mesa_id = p_mesa and o.cobrado_at is null
+     and o.created_at > privado.desde_hoy(b.id);
+  return jsonb_build_object(
+    'pedidos', (select count(distinct coalesce(o.parte_de, o.id)) from pedidos_multibar o where o.id = any(v_ids)),
+    'total', (select coalesce(sum(o.total), 0) from pedidos_multibar o where o.id = any(v_ids)),
+    'lineas', privado.lineas_juntas(v_ids));
+end $$;
+
 -- Cuentas de las mesas: lo pedido hoy y sin cobrar, mesa por mesa, con
 -- todos los pedidos juntos (de todos los móviles, de barra y de cocina).
 -- Solo se cobra lo SERVIDO: "total" y "lineas" son lo servido (con "ids",
@@ -1665,7 +1699,8 @@ begin
     raise exception 'FALTAN_DATOS';
   end if;
   foreach k in array array['barra_cocina','avisos_mesa','cuentas_mesa','control_mesas','destacados','horarios','fotos',
-                           'otra_ronda','alergenos','mas_pedidos','carta_hora','bienvenida','raciones'] loop
+                           'otra_ronda','alergenos','mas_pedidos','carta_hora','bienvenida','raciones',
+                           'pestanas_cuadricula','buscador','pedido_mesa','letra_grande'] loop
     if p_opciones ? k then
       if jsonb_typeof(p_opciones->k) <> 'boolean' then
         raise exception 'OPCION_NO_VALIDA';
@@ -2103,7 +2138,8 @@ grant execute on function
   public.plataforma_alta_bar_multibar(text, jsonb),
   public.plataforma_aspecto_multibar(text, integer, jsonb),
   public.plataforma_datos_bar_multibar(text, integer, jsonb),
-  public.plataforma_usuario_multibar(text, integer, jsonb)
+  public.plataforma_usuario_multibar(text, integer, jsonb),
+  public.carta_pedido_mesa_multibar(text, integer, text)
 to anon, authenticated;
 
 -- Solo el servidor de Supabase (Edge Function con la clave secreta) puede
