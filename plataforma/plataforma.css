@@ -176,3 +176,49 @@ a{ color:inherit; text-decoration:none; }
 .ojo{ position:absolute; top:0; right:0; bottom:0; width:48px; display:flex; align-items:center; justify-content:center; background:none; border:0; color:var(--text-dim); cursor:pointer; padding:0; }
 .ojo svg{ width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .ojo:active{ color:var(--text); }
+
+/* ---------- Entrega 2 (v29): aspecto, datos y personal ---------- */
+.contenido{ display:flex; flex-direction:column; gap:20px; }
+#fContenido .enlace-ficha b{ font-family:var(--font-titulo); font-weight:600; font-size:16px; }
+.muestras{ display:flex; gap:4px; flex:none; }
+.muestras i{ width:18px; height:18px; border-radius:50%; border:1px solid rgba(255,255,255,.25); }
+.persona a.p-texto{ color:inherit; text-decoration:none; }
+.persona a.p-texto b{ text-decoration:underline; text-decoration-color:var(--text-faint); text-underline-offset:3px; }
+.nota-campo{ font-size:12.5px; color:var(--text-faint); margin-top:-4px; }
+.campo textarea{ width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; color:var(--text); font:inherit; font-size:16px; padding:12px; resize:vertical; }
+.campo textarea:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(59,130,246,.25); }
+.dato-fijo{ font-size:14px; color:var(--text); padding:6px 0; overflow-wrap:anywhere; font-weight:400; }
+.opcion-suelta{ padding:4px 0; border:0; }
+
+/* Vista previa: la carta del bar dentro de un marco de móvil, a escala. */
+.previa{ position:sticky; top:58px; z-index:5; background:var(--bg); padding:6px 0 8px; margin:0 -2px; }
+.previa-marco{ position:relative; height:min(40vh, 380px); border:1px solid var(--border); border-radius:16px; overflow:hidden; background:#fff; }
+.previa-marco iframe{ position:absolute; top:0; left:0; width:142.86%; height:142.86%; border:0; transform:scale(.7); transform-origin:0 0; }
+.previa-eti{ display:flex; justify-content:center; align-items:center; gap:10px; font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; color:var(--text-faint); margin-top:6px; text-transform:uppercase; }
+.previa-eti button{ background:none; border:1px solid var(--border); border-radius:999px; color:var(--text-dim); font:inherit; font-size:11px; padding:4px 10px; min-height:28px; cursor:pointer; }
+.previa.plegada{ position:static; }
+.previa.plegada .previa-marco{ height:0; border:0; }
+.contenido .eti + h1{ margin-top:2px; }
+
+.paletas{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; }
+.paleta{ flex:none; display:flex; flex-direction:column; align-items:center; gap:6px; min-width:76px; padding:10px 8px; background:var(--surface); border:1px solid var(--border); border-radius:12px; color:var(--text-dim); font:inherit; font-size:12.5px; cursor:pointer; }
+.paleta:active{ background:var(--surface-2); }
+.paleta span{ display:flex; }
+.paleta i{ width:20px; height:20px; border-radius:50%; margin-left:-5px; border:2px solid var(--surface); }
+.paleta i:first-child{ margin-left:0; }
+
+.fila-color{ cursor:pointer; }
+.fila-color .hex{ width:92px; flex:none; min-height:40px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; padding:0 8px; text-align:center; }
+.fila-color .hex.mal{ border-color:var(--red); }
+.fila-color input[type=color]{ flex:none; width:44px; height:44px; padding:0; border:1px solid var(--border); border-radius:10px; background:none; cursor:pointer; }
+.fila-color input[type=color]::-webkit-color-swatch-wrapper{ padding:3px; }
+.fila-color input[type=color]::-webkit-color-swatch{ border:0; border-radius:7px; }
+
+.logo-caja{ display:flex; align-items:center; gap:14px; }
+.logo-ver{ flex:none; width:96px; height:96px; border-radius:12px; border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; overflow:hidden;
+  background:repeating-conic-gradient(#1b1d22 0 25%, #23262c 0 50%) 0 0 / 14px 14px; }
+.logo-ver img{ max-width:100%; max-height:100%; object-fit:contain; }
+.logo-ver span{ font-size:12px; color:var(--text-faint); text-align:center; padding:6px; }
+.logo-botones{ display:flex; flex-direction:column; gap:8px; }
+
+.barra-guardar{ position:sticky; bottom:0; z-index:6; display:grid; grid-template-columns:1fr 2fr; gap:8px; padding:12px 0 max(12px, env(safe-area-inset-bottom)); background:linear-gradient(to top, var(--bg) 75%, transparent); }

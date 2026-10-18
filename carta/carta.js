@@ -77,9 +77,20 @@ let BAR_INFO = null;
 let CARTA_LISTA = false; // true cuando init() ha terminado de pintar la carta
 const barNombreEl = document.getElementById("barNombre");
 const barPieEl = document.getElementById("barPie");
+// Vista previa desde el panel de plataforma (v29): la plataforma (misma web)
+// abre la carta dentro de su página y le manda el aspecto que se está
+// eligiendo; la carta lo pinta sin guardarlo. Solo se aceptan mensajes de
+// esta misma web.
+let PREVIA = null;
+window.addEventListener("message", (ev) => {
+  if(ev.origin !== location.origin || !ev.data || ev.data.tipo !== "mb-vista-previa") return;
+  PREVIA = (ev.data.aspecto && typeof ev.data.aspecto === "object") ? ev.data.aspecto : {};
+  if(BAR_INFO) pintarBar(BAR_INFO);
+});
 function pintarBar(info){
   if(!info || !info.nombre) return;
   BAR_INFO = info;
+  if(PREVIA) info = Object.assign({}, info, { ajustes: Object.assign({}, info.ajustes, { aspecto: PREVIA }) });
   // Colores, fuentes, logo, icono para instalar y textos del bar (comun/aspecto.js).
   Aspecto.aplicar(info, { instalable: true });
   pintarTextos();

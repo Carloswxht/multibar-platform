@@ -5,7 +5,7 @@
 <script>
 /* Siempre la última versión (igual que la carta y el panel): si en
    version.json hay una versión más nueva que esta, se recarga sola una vez. */
-var VERSION_WEB = 28;
+var VERSION_WEB = 29;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -23,7 +23,7 @@ var VERSION_WEB = 28;
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
 <title>Plataforma · MultiBar</title>
-<link rel="stylesheet" href="plataforma.css?v=28">
+<link rel="stylesheet" href="plataforma.css?v=29">
 </head>
 <body>
 
@@ -114,6 +114,15 @@ var VERSION_WEB = 28;
     </form>
   </section>
 
+  <!-- ASPECTO DE LA CARTA DE UN BAR (v29) -->
+  <section class="vista" id="vAspecto" hidden><div id="aspContenido" class="contenido"></div></section>
+
+  <!-- DATOS DEL BAR Y AVISO LEGAL (v29) -->
+  <section class="vista" id="vDatos" hidden><div id="datContenido" class="contenido"></div></section>
+
+  <!-- UNA PERSONA DEL PERSONAL (v29) -->
+  <section class="vista" id="vPersona" hidden><div id="perContenido" class="contenido"></div></section>
+
   <!-- ALTA HECHA -->
   <section class="vista" id="vHecho" hidden>
     <p class="eti">Alta hecha</p>
@@ -124,7 +133,7 @@ var VERSION_WEB = 28;
 </main>
 
 <footer class="pie">
-  <span class="mono">Plataforma v28</span>
+  <span class="mono">Plataforma v29</span>
   <a href="https://www.autonomialab.es" target="_blank" rel="noopener">Plataforma de <b>autonomIA Lab</b></a>
 </footer>
 
@@ -142,7 +151,8 @@ var VERSION_WEB = 28;
 
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script src="../comun/datos.js?v=28"></script>
-<script src="plataforma.js?v=28"></script>
+<script src="../comun/aspecto.js?v=29"></script>
+<script src="../comun/datos.js?v=29"></script>
+<script src="plataforma.js?v=29"></script>
 </body>
 </html>

@@ -120,6 +120,9 @@ function textoError(codigo){
     MESAS_NO_VALIDAS: 'El número de mesas tiene que estar entre 1 y 200.',
     EMAIL_NO_VALIDO: 'Ese correo no parece válido.',
     OPCION_NO_VALIDA: 'Esa opción no es válida.',
+    ASPECTO_NO_VALIDO: 'Algún color, letra o texto no es válido. Revísalo.',
+    LOGO_NO_VALIDO: 'Ese logo no se ha podido usar. Prueba con una imagen PNG o JPG.',
+    DATOS_NO_VALIDOS: 'Algún dato es demasiado largo o no es válido.',
   };
   return textos[base] || ('Algo ha fallado (' + c + '). Inténtalo otra vez.');
 }
@@ -330,6 +333,31 @@ async function rpcPlataforma(nombre, params){
     throw e;
   }
 }
+/* Logo de un bar (v29): el panel de plataforma manda la imagen ya reducida a
+   la función del servidor «subir-logo», que comprueba la sesión de plataforma
+   y la guarda en la carpeta «logos». Devuelve su dirección (se guarda en el
+   bar al guardar el aspecto). */
+async function subirLogoPlataforma(barId, imagen){
+  const s = getSesionPlataforma();
+  const corte = window.AbortController ? new AbortController() : null;
+  const reloj = corte ? setTimeout(() => corte.abort(), 45000) : null;
+  let r, d = {};
+  try {
+    r = await fetch(FUNCIONES_API + '/subir-logo', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+      body: JSON.stringify({ token: s ? s.token : null, bar: Number(barId), imagen }),
+      signal: corte ? corte.signal : undefined,
+    });
+    try { d = await r.json(); } catch(e) { d = {}; }
+  } catch(e) {
+    throw new ErrorDatos('SIN_CONEXION');
+  } finally { if(reloj) clearTimeout(reloj); }
+  if(!r.ok){
+    if(d.codigo === 'SESION_CADUCADA') guardarLocal(CLAVE_PLATAFORMA, null);
+    throw new ErrorDatos(d.codigo || ('HTTP_' + r.status));
+  }
+  return d.logo || '';
+}
 const datosPlataforma = {
   sesion: getSesionPlataforma,
   async entrar(email, password){
@@ -350,6 +378,11 @@ const datosPlataforma = {
   opciones: (id, opciones) => rpcPlataforma('plataforma_opciones_multibar', { p_bar: Number(id), p_opciones: opciones }),
   estado: (id, activo) => rpcPlataforma('plataforma_estado_bar_multibar', { p_bar: Number(id), p_activo: !!activo }),
   alta: (datos) => rpcPlataforma('plataforma_alta_bar_multibar', { p_datos: datos }),
+  // Entrega 2 (v29): aspecto, datos del bar y personal.
+  aspecto: (id, aspecto) => rpcPlataforma('plataforma_aspecto_multibar', { p_bar: Number(id), p_aspecto: aspecto }),
+  datosBar: (id, datos) => rpcPlataforma('plataforma_datos_bar_multibar', { p_bar: Number(id), p_datos: datos }),
+  usuario: (id, datos) => rpcPlataforma('plataforma_usuario_multibar', { p_bar: Number(id), p_datos: datos }),
+  subirLogo: (id, imagen) => subirLogoPlataforma(id, imagen),
   // Correos (los manda el servidor; contesta siempre igual):
   enlaceContrasena: (email) => pedirEnlaceRecuperar(email),
   bienvenida: (email) => pedirEnlaceRecuperar(email, true),
