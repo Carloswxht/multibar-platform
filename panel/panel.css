@@ -401,3 +401,8 @@ html.sin-scroll, html.sin-scroll body{ overflow:hidden; }
 .stat-viajes .sv-txt{ display:flex; flex-direction:column; gap:3px; min-width:0; }
 .stat-viajes .sv-txt b{ font-family:var(--font-titulos); font-size:15px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; }
 .stat-viajes .sv-txt span{ font-size:12px; line-height:1.35; opacity:.85; }
+
+/* Firma de autonomIA Lab en la barra de abajo, a la derecha (v23, a petición de Carlos):
+   enlace a la web de autonomIA Lab, frente al número de versión de la izquierda */
+.firma-barra{ position:absolute; right:16px; bottom:max(16px, env(safe-area-inset-bottom)); height:56px; display:flex; flex-direction:column; justify-content:center; text-align:right; font-size:11px; line-height:1.35; color:var(--suave); letter-spacing:.04em; text-decoration:none; }
+.firma-barra b{ font-weight:600; color:var(--navy); text-decoration:underline; text-underline-offset:2px; }
