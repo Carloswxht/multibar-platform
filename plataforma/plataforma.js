@@ -22,6 +22,13 @@ const OPCIONES = [
   { k: 'destacados', t: 'Recomendados', d: 'Etiquetas Plato del día, Recomendado y Nuevo, y pestaña «★ Recomendados».' },
   { k: 'horarios', t: 'Carta por horario', d: 'Cada pestaña puede tener sus días y horas (desayunos, menú del día…).' },
   { k: 'fotos', t: 'Fotos de los productos', d: 'El admin del bar sube fotos desde su panel y salen en la carta.' },
+  // Carta más fácil (v30)
+  { k: 'otra_ronda', t: 'Otra ronda', d: 'Botón «Otra igual» para repetir el último pedido con un toque.' },
+  { k: 'alergenos', t: 'Alérgenos', d: 'Iconos en cada plato y «¿Alergias?» para avisar de lo que no puede tomar. El admin los marca en su panel.' },
+  { k: 'mas_pedidos', t: 'Lo más pedido', d: 'Primera pestaña «Lo mejor» con lo más pedido en 30 días y los recomendados.' },
+  { k: 'carta_hora', t: 'Carta según la hora', d: 'Primero las pestañas que se sirven ahora. Necesita «Carta por horario».' },
+  { k: 'bienvenida', t: 'Bienvenida', d: 'La primera vez, tres pasos: elige, envía y pagas al final.' },
+  { k: 'raciones', t: 'Raciones', d: '«Para 2–3 personas» junto al precio. El admin lo escribe en su panel.' },
 ];
 const ROLES = { admin: 'Admin', barra: 'Barra', camarero: 'Camarero' };
 

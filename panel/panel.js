@@ -996,6 +996,8 @@ function editarProducto(p){
     { id: 'seccion', etiqueta: 'Sección (subtítulo)', valor: p.seccion || '' },
     { id: 'visible', etiqueta: 'Se ve en la carta', tipo: 'check', valor: p.visible },
     { id: 'disponible', etiqueta: 'Hay (no agotado)', tipo: 'check', valor: p.disponible },
+    // Ración (v30, opción ajustes.raciones): «para 2–3 personas».
+    ...(opcionBar('raciones') ? [{ id: 'racion', etiqueta: 'Ración (opcional)', valor: p.racion || '', ayuda: 'Ej.: para 2–3 personas · ideal para compartir. Máx. 40 letras.' }] : []),
   ], async (v) => {
     const precio = Number(String(v.precio).replace(',', '.'));
     if(!v.nombre.trim()) throw new Error('Escribe el nombre.');
@@ -1003,11 +1005,35 @@ function editarProducto(p){
     const datos = { nombre: v.nombre, nombre_corto: v.nombre_corto, descripcion: v.descripcion, precio, tamano: v.tamano,
       solo_tamano: false, categoria: v.categoria, seccion: v.seccion, visible: v.visible, disponible: v.disponible };
     if(!nuevo){ datos.id = p.id; delete datos.solo_tamano; delete estado.cambios[p.id]; }
+    if(opcionBar('raciones')){
+      if(v.racion.length > 40) throw new Error('La ración es demasiado larga (máx. 40 letras).');
+      datos.racion = v.racion;
+    }
+    if(opcionBar('alergenos')) datos.alergenos = Array.from(document.querySelectorAll('#modalCampos .al-panel input:checked')).map(i => i.value);
     await datosPanel.guardarProducto(datos);
     toast('Producto guardado');
     cargarProductos();
   });
+  if(opcionBar('alergenos')) pintarAlergenosProducto(p.alergenos || []);
   if(opcionBar('fotos')) pintarFotoProducto(nuevo ? null : p);
+}
+
+/* ---------------- ALÉRGENOS DE UN PRODUCTO (v30, admin, opción ajustes.alergenos) ----------------
+   Los 14 de la normativa europea. Se guardan con el botón «Guardar» y se
+   ponen igual en los otros tamaños del mismo plato (Tapa / Plato…). */
+const ALERGENOS = [
+  ['gluten', '🌾 Gluten'], ['crustaceos', '🦐 Crustáceos'], ['huevo', '🥚 Huevo'], ['pescado', '🐟 Pescado'],
+  ['cacahuetes', '🥜 Cacahuetes'], ['soja', '🌱 Soja'], ['lacteos', '🥛 Lácteos'], ['frutos_cascara', '🌰 Frutos de cáscara'],
+  ['apio', '🥬 Apio'], ['mostaza', '🟡 Mostaza'], ['sesamo', '⚪ Sésamo'], ['sulfitos', '🍷 Sulfitos'],
+  ['altramuces', '🌼 Altramuces'], ['moluscos', '🦪 Moluscos'],
+];
+function pintarAlergenosProducto(marcados){
+  const caja = document.createElement('div');
+  caja.className = 'campo al-panel';
+  caja.innerHTML = `<span>Alérgenos que lleva</span>
+    <div class="al-rejilla">${ALERGENOS.map(([k, t]) => `<label class="al-check"><input type="checkbox" value="${k}"${marcados.includes(k) ? ' checked' : ''}><span>${esc(t)}</span></label>`).join('')}</div>
+    <small>Se ponen igual en sus otros tamaños (Tapa / Plato). Que los confirme la cocina.</small>`;
+  $('modalCampos').appendChild(caja);
 }
 
 /* ---------------- FOTOS DE LOS PRODUCTOS (v26, admin, opción ajustes.fotos) ----------------

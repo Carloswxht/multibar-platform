@@ -585,3 +585,39 @@ html.mb-cargando body{ visibility:hidden; }
 .ff-anadir{ flex:none; min-width:112px; min-height:44px; border:0; border-radius:12px; background:var(--orange); color:var(--sobre-acento, #fff); font-family:var(--font-texto); font-size:14px; font-weight:700; cursor:pointer; }
 .ff-anadir.hecho{ background:var(--navy); color:var(--sobre-principal, #fff); }
 .ff-anadir:disabled{ opacity:.5; cursor:default; }
+
+/* =====================================================================
+   CARTA MÁS FÁCIL (v30): opciones del bar, apagadas por defecto
+   ===================================================================== */
+/* Alérgenos: iconos junto al nombre, aviso en rojo si lleva lo que has marcado */
+.li-al{ display:inline-flex; gap:2px; margin-left:6px; vertical-align:1px; }
+.li-al i{ font-style:normal; font-size:13px; line-height:1; }
+.li-alergia{ font-family:var(--font-texto); font-size:11.5px; font-weight:700; color:#B3261E; margin-top:3px; }
+.line-item.con-alergia .li-name, .line-item.con-alergia .li-sublab{ color:#B3261E; }
+.alergia-franja{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; margin:12px 0 0; padding:10px 12px; border:1px dashed var(--line); border-radius:10px; background:var(--paper-2, #F4F5F7); color:var(--ink); font-family:var(--font-texto); font-size:13px; text-align:left; cursor:pointer; }
+.alergia-franja b{ font-weight:700; }
+.alergia-franja span{ color:var(--ink-soft); font-size:12px; }
+.alergia-franja.activa{ border:1.5px solid #B3261E; background:#FCEEEE; }
+.alergia-franja.activa b{ color:#B3261E; }
+.al-caja{ padding-top:10px; }
+.al-lista{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:14px 0 10px; }
+.al-op{ display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 10px; border:1.5px solid var(--line); border-radius:10px; background:var(--paper, #fff); color:var(--ink); font-family:var(--font-texto); font-size:13.5px; text-align:left; cursor:pointer; }
+.al-op i{ font-style:normal; font-size:17px; }
+.al-op.sel{ border-color:#B3261E; background:#FCEEEE; color:#B3261E; font-weight:700; }
+.al-aviso{ font-family:var(--font-texto); font-size:12px; color:var(--ink-soft); margin:4px 0 12px; }
+.al-listo, .bv-ok{ width:100%; }
+
+/* Ración: «para 2–3 personas» junto al precio */
+.li-racion{ font-family:var(--font-texto); font-size:12px; color:var(--ink-soft); margin-top:2px; }
+
+/* Otra ronda: en la barra de abajo (sin nada escogido) y en el tique */
+.fixed-bottom .top-send.repetir{ background:var(--paper, #fff) !important; color:var(--navy-texto, var(--navy)) !important; border-top:1.5px solid var(--orange) !important; letter-spacing:.04em !important; text-transform:none !important; font-size:13.5px !important; white-space:nowrap; text-overflow:ellipsis; }
+.repetir-btn{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; margin:16px 0 4px; padding:12px 14px; border:1.5px solid var(--orange); border-radius:12px; background:transparent; color:var(--ink); font-family:var(--font-texto); text-align:left; cursor:pointer; }
+.repetir-btn b{ font-size:14px; color:var(--acento-texto, var(--orange)); }
+.repetir-btn span{ font-size:12.5px; color:var(--ink-soft); }
+
+/* Bienvenida: tres pasos la primera vez */
+.bv-caja{ padding-top:8px; }
+.bv-mesa{ font-family:var(--font-texto); font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--acento-texto, var(--orange)); margin-bottom:4px; }
+.bv-pasos{ margin:14px 0 18px; padding-left:22px; font-family:var(--font-texto); font-size:15px; line-height:1.5; color:var(--ink); }
+.bv-pasos li{ margin:6px 0; }
