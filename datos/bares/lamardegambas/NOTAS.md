@@ -49,8 +49,8 @@ Dentro de las pestañas que juntan varias secciones, los nombres originales de l
 9. Confirmar con el local precios de las bebidas (provisionales), la cerveza que sirven (puesta Cruzcampo) y los combinados.
 10. Antes de imprimir los QR: precios aprobados por escrito, alérgenos, aviso legal, mesas reales en el panel, copias de seguridad.
 2. Vista previa de WhatsApp: quitada a petición de Carlos (12 oct); la imagen hecha está en `archivo/og-gambas5.jpg` por si vuelve.
-3. Alérgenos: la carta física los lleva en un QR aparte. Pedir la lista y añadirla (hay un botón "i" por categoría, hoy oculto).
-4. Fotos de productos: hay un botón "FOTO" que aparece solo cuando un producto tiene imagen (se mantiene pulsado para verla). Los postres tienen foto en la carta física, pero hay que pedirlas aparte.
+3. Alérgenos: la carta física los lleva en un QR aparte. Desde la v30 (18 oct) existe la opción `alergenos` (apagada aquí): pedir la lista al local, marcarlos en el panel (Editar producto) y encender la opción desde `/plataforma/`. Hoy 0 de 139 productos los tienen.
+4. Fotos de productos: desde la v26 la opción `fotos` (apagada aquí) pone miniatura y foto grande; se suben desde el panel. Los postres tienen foto en la carta física, pero hay que pedirlas aparte.
 5. Opcional: logo de la gamba en la cabecera (usar una foto limpia que dé Carlos).
 6. ~~Pedidos reales a un panel de barra~~: hecho (panel + Fase 5, ver "Panel de barra").
-7. Opcional: buscador de productos arriba, y una pestaña "Lo mejor de la casa" con los platos estrella (el dueño debe decir cuáles).
+7. Opcional: la pestaña «★ Lo mejor» ya existe (v30, opción `mas_pedidos`, más los destacados de la v25); el buscador llega en la «carta más fácil», entrega 2. Las opciones v25, v26 y v30 siguen apagadas en este bar (18 oct).
