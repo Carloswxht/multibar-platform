@@ -251,7 +251,8 @@ create view multibar.bares_multibar as
              'titular', n.titular, 'nif', n.nif, 'domicilio', n.domicilio_fiscal,
              'email', n.correo_legal, 'telefono', n.telefono_legal, 'registro', n.registro))) end as ajustes,
          n.created_at
-    from comun.negocios n left join multibar.ajustes_multibar a on a.negocio_id = n.id;
+    from comun.negocios n left join multibar.ajustes_multibar a on a.negocio_id = n.id
+   where n.tipo = 'multibar';  -- el negocio de la plataforma (autonomIA Lab) no es un bar (v27)
 
 -- El personal tal como lo ve MultiBar: la persona + su rol en el bar.
 create view multibar.usuarios_multibar as

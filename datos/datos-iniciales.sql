@@ -16,6 +16,9 @@ insert into comun.negocios (id, slug, nombre, tipo) overriding system value valu
   (1, 'lamardegambas', 'La Mar de Gambas', 'multibar');
 select setval(pg_get_serial_sequence('comun.negocios','id'), (select max(id) from comun.negocios));
 insert into comun.productos_contratados (negocio_id, producto) values (1, 'multibar');
+-- El negocio de la plataforma (v27): autonomIA Lab. Sus usuarios entran en
+-- /plataforma/ (solo Carlos); no es un bar ni sale en ninguna carta.
+insert into comun.negocios (slug, nombre, tipo) values ('autonomialab', 'autonomIA Lab', 'plataforma');
 
 insert into multibar.ajustes_multibar (negocio_id, subtitulo, ajustes) values
   (1, 'Cervecerías · Desde 2007', jsonb_build_object(

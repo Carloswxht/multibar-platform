@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script>
+/* Siempre la última versión (igual que la carta y el panel): si en
+   version.json hay una versión más nueva que esta, se recarga sola una vez. */
+var VERSION_WEB = 27;
+(function(){ try {
+  fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){
+      if(!j || !(Number(j.version) > VERSION_WEB)) return;
+      var u = new URL(location.href);
+      if(u.searchParams.get('v') === String(j.version)) return;
+      u.searchParams.set('v', String(j.version));
+      location.replace(u.href);
+    }).catch(function(){});
+} catch(e) {} })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<title>Plataforma · MultiBar</title>
+<link rel="stylesheet" href="plataforma.css?v=27">
+</head>
+<body>
+
+<!-- PLATAFORMA (v27): el panel de autonomIA Lab para administrar MultiBar.
+     Diseño propio, con los colores y las letras de autonomIA Lab (no el de
+     la carta ni el del panel de los bares). Solo entra la cuenta de plataforma. -->
+<header class="cab">
+  <a class="marca" href="#" aria-label="autonomIA Lab">autonomIA Lab<span class="cursor" aria-hidden="true"></span></a>
+  <span class="cab-producto">MultiBar</span>
+  <button class="cab-salir" id="bSalir" type="button" hidden>Salir</button>
+</header>
+
+<main class="app">
+
+  <!-- ENTRAR -->
+  <section class="vista" id="vEntrar" hidden>
+    <p class="eti">Plataforma</p>
+    <h1>Administra MultiBar</h1>
+    <p class="sub">Tus bares, sus opciones y las altas nuevas. Solo para la cuenta de autonomIA Lab.</p>
+    <form id="fEntrar" class="caja form" novalidate>
+      <label class="campo"><span>Correo</span><input id="eEmail" type="email" inputmode="email" autocomplete="username" autocapitalize="off" required></label>
+      <label class="campo"><span>Contraseña</span><input id="ePass" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="eError" role="alert" hidden></p>
+      <button class="btn btn-azul" type="submit">Entrar</button>
+      <button class="enlace" id="bOlvido" type="button">¿Has olvidado tu contraseña?</button>
+    </form>
+  </section>
+
+  <!-- HE OLVIDADO LA CONTRASEÑA -->
+  <section class="vista" id="vOlvido" hidden>
+    <button class="volver" type="button" data-ir="entrar">← Entrar</button>
+    <h1>Contraseña nueva</h1>
+    <p class="sub">Escribe tu correo y te mandamos un enlace para elegir otra. Vale 30 minutos.</p>
+    <form id="fOlvido" class="caja form" novalidate>
+      <label class="campo"><span>Correo</span><input id="oEmail" type="email" inputmode="email" autocomplete="username" autocapitalize="off" required></label>
+      <button class="btn btn-azul" type="submit">Mandar enlace</button>
+      <p class="ok" id="oHecho" hidden>Si ese correo es de la plataforma, te acaba de llegar un enlace. Mira también en «Promociones» o «Spam».</p>
+    </form>
+  </section>
+
+  <!-- ELEGIR CONTRASEÑA (desde el enlace del correo) -->
+  <section class="vista" id="vNueva" hidden>
+    <h1>Elige tu contraseña</h1>
+    <p class="sub">Al menos 8 caracteres. Mejor una frase que recuerdes.</p>
+    <form id="fNueva" class="caja form" novalidate>
+      <label class="campo"><span>Contraseña nueva</span><input id="nPass" type="password" autocomplete="new-password" required></label>
+      <label class="campo"><span>Repítela</span><input id="nPass2" type="password" autocomplete="new-password" required></label>
+      <p class="error" id="nError" role="alert" hidden></p>
+      <button class="btn btn-azul" type="submit">Guardar contraseña</button>
+    </form>
+  </section>
+
+  <!-- LISTA DE BARES -->
+  <section class="vista" id="vBares" hidden>
+    <div class="titulo-fila">
+      <div><p class="eti">MultiBar</p><h1>Bares</h1></div>
+      <a class="btn btn-azul btn-peq" href="#nuevo">+ Nuevo bar</a>
+    </div>
+    <div class="resumen" id="bResumen"></div>
+    <div id="bLista" class="lista"></div>
+  </section>
+
+  <!-- FICHA DE UN BAR -->
+  <section class="vista" id="vFicha" hidden>
+    <a class="volver" href="#">← Bares</a>
+    <div id="fContenido"></div>
+  </section>
+
+  <!-- ALTA DE UN BAR -->
+  <section class="vista" id="vAlta" hidden>
+    <a class="volver" href="#">← Bares</a>
+    <p class="eti">Alta</p>
+    <h1>Nuevo bar</h1>
+    <p class="sub">Se crea con el aspecto neutro de MultiBar y todas las opciones apagadas. Al dueño le llega un correo para elegir su contraseña.</p>
+    <form id="fAlta" class="caja form" novalidate>
+      <label class="campo"><span>Nombre del bar</span><input id="aNombre" maxlength="60" autocomplete="off" required></label>
+      <label class="campo"><span>Dirección corta</span><input id="aSlug" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="url" required>
+        <small class="mono" id="aSlugVer"></small></label>
+      <label class="campo"><span>Número de mesas</span><input id="aMesas" type="number" inputmode="numeric" min="1" max="200" value="10" required>
+        <small>Mesa 1, Mesa 2… cada una con su QR. Los nombres se pueden cambiar luego en su panel.</small></label>
+      <label class="campo"><span>Carta</span><select id="aCopia"></select>
+        <small>Copiar trae las pestañas, productos y precios (sin fotos ni etiquetas). Luego el dueño la cambia desde su panel.</small></label>
+      <label class="campo"><span>Correo del dueño</span><input id="aEmail" type="email" inputmode="email" autocomplete="off" autocapitalize="off" required>
+        <small>Con este correo entrará en su panel. No puede ser uno que ya use otra persona.</small></label>
+      <label class="campo"><span>Nombre del dueño <i>(opcional)</i></span><input id="aDueno" maxlength="60" autocomplete="off"></label>
+      <p class="error" id="aError" role="alert" hidden></p>
+      <button class="btn btn-azul" type="submit">Dar de alta</button>
+    </form>
+  </section>
+
+  <!-- ALTA HECHA -->
+  <section class="vista" id="vHecho" hidden>
+    <p class="eti">Alta hecha</p>
+    <h1 id="hNombre"></h1>
+    <div class="caja" id="hContenido"></div>
+  </section>
+
+</main>
+
+<footer class="pie">
+  <span class="mono">Plataforma v27</span>
+  <a href="https://www.autonomialab.es" target="_blank" rel="noopener">Plataforma de <b>autonomIA Lab</b></a>
+</footer>
+
+<!-- Ventana para confirmar (dar de baja…) -->
+<div class="velo" id="dialogo" hidden>
+  <div class="dialogo caja" role="dialog" aria-modal="true" aria-labelledby="dTitulo">
+    <h2 id="dTitulo"></h2>
+    <p id="dTexto"></p>
+    <div class="dialogo-botones">
+      <button class="btn btn-borde" type="button" id="dNo">Cancelar</button>
+      <button class="btn btn-rojo" type="button" id="dSi"></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="../comun/datos.js?v=27"></script>
+<script src="plataforma.js?v=27"></script>
+</body>
+</html>
