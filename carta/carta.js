@@ -594,17 +594,20 @@ document.getElementById("confirmClose").addEventListener("click", () => {
    sale en el panel hasta que el personal pulsa «Atendido». La base no
    repite un aviso igual sin atender y limita los avisos por mesa. */
 const llamarBtn = document.getElementById("llamarBtn");
+const llamarTiqueBtn = document.getElementById("llamarTiqueBtn"); // el mismo botón, dentro del tique (v20)
 const llamarHoja = document.getElementById("llamarHoja");
 function pintarLlamar(){
   const activo = !!(BAR_INFO && BAR_INFO.ajustes && BAR_INFO.ajustes.avisos_mesa);
-  llamarBtn.hidden = !(activo && MESA);
+  llamarBtn.hidden = llamarTiqueBtn.hidden = !(activo && MESA);
 }
 // «Pedir la cuenta» solo si este móvil ya ha hecho algún pedido (v17):
 // sin pedidos no hay nada que cobrar, solo se puede llamar al camarero.
-llamarBtn.addEventListener("click", () => {
+function abrirLlamar(){
   llamarHoja.querySelector('.ll-op[data-tipo="cuenta"]').hidden = rounds.length === 0;
   llamarHoja.classList.add("show");
-});
+}
+llamarBtn.addEventListener("click", abrirLlamar);
+llamarTiqueBtn.addEventListener("click", abrirLlamar);
 document.getElementById("llamarCancelar").addEventListener("click", () => llamarHoja.classList.remove("show"));
 llamarHoja.addEventListener("click", (ev) => { if(ev.target === llamarHoja) llamarHoja.classList.remove("show"); });
 let llamando = false;
