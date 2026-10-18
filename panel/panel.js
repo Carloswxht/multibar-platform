@@ -127,9 +127,9 @@ function toast(texto, error){
 
 /* ---------------- PANTALLAS ---------------- */
 function mostrar(vista){
-  ['vLogin', 'vOlvido', 'vNueva', 'vPass', 'vPanel'].forEach(v => { $(v).hidden = (v !== vista); });
+  ['vLogin', 'vOlvido', 'vNueva', 'vPass', 'vOtroBar', 'vPanel'].forEach(v => { $(v).hidden = (v !== vista); });
   $('cVivo').hidden = vista !== 'vPanel';
-  if(vista === 'vLogin') $('cVista').textContent = 'PANEL DE BARRA';
+  if(vista === 'vLogin' || vista === 'vOtroBar') $('cVista').textContent = 'PANEL DE BARRA';
   if(vista === 'vPass' || vista === 'vOlvido' || vista === 'vNueva') $('cVista').textContent = 'TU CONTRASEÑA';
   window.scrollTo(0, 0);
 }
@@ -157,8 +157,21 @@ async function arrancar(){
     catch(e) { /* sin conexión: se sigue con la sesión guardada */ }
   }
   if(!s) return mostrar('vLogin');
+  // El enlace es de otro bar que el de la sesión (p. ej. «Abrir panel» desde
+  // la plataforma): se pregunta antes de abrir el de la sesión (v28).
+  if(BAR_ENLACE && s.bar && s.bar.slug && s.bar.slug !== BAR_ENLACE){
+    estado.sesionOtroBar = s;
+    const enlace = (leerLocal('bar.' + BAR_ENLACE) || {}).nombre || BAR_ENLACE;
+    $('obEnlace').textContent = $('obEnlace2').textContent = enlace;
+    datosCarta.bar().then((i) => { if(i && i.nombre) $('obEnlace').textContent = $('obEnlace2').textContent = i.nombre; }).catch(() => {});
+    $('obSesion').textContent = $('obSesion2').textContent = s.bar.nombre || s.bar.slug;
+    $('obUsuario').textContent = s.nombre + ' · ' + (ROLES[s.rol] || s.rol);
+    return mostrar('vOtroBar');
+  }
   entrarConSesion(s);
 }
+// El bar del enlace (/panel/?bar=…), antes de que la sesión lo cambie.
+const BAR_ENLACE = BAR;
 
 function entrarConSesion(s){
   estado.sesion = s;
@@ -292,6 +305,19 @@ async function salir(){
   volverAlLogin();
 }
 $('pSalir').addEventListener('click', salir);
+// Otro bar (v28): salir y entrar en el del enlace, o seguir en el de la sesión
+// (la dirección pasa a ser la de su bar, para no volver a preguntar al recargar).
+$('obSalir').addEventListener('click', async () => {
+  estado.sesionOtroBar = null;
+  await logout();
+  volverAlLogin();
+  pintarBarDelEnlace();
+});
+$('obSeguir').addEventListener('click', () => {
+  const s = estado.sesionOtroBar; estado.sesionOtroBar = null;
+  try { history.replaceState(null, '', location.pathname + '?bar=' + encodeURIComponent(s.bar.slug)); } catch(e) {}
+  entrarConSesion(s);
+});
 $('bSalir').addEventListener('click', salir);
 
 /* ---------------- MENÚ DE ABAJO ---------------- */
