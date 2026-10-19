@@ -29,6 +29,11 @@ const OPCIONES = [
   { k: 'carta_hora', t: 'Carta según la hora', d: 'Primero las pestañas que se sirven ahora. Necesita «Carta por horario».' },
   { k: 'bienvenida', t: 'Bienvenida', d: 'La primera vez, tres pasos: elige, envía y pagas al final.' },
   { k: 'raciones', t: 'Raciones', d: '«Para 2–3 personas» junto al precio. El admin lo escribe en su panel.' },
+  // Carta más fácil, entrega 2 (v31)
+  { k: 'pestanas_cuadricula', t: 'Pestañas en cuadrícula', d: 'Al abrir la carta, todas las pestañas en botones grandes.' },
+  { k: 'buscador', t: 'Buscador', d: 'Lupa arriba para buscar un plato en toda la carta.' },
+  { k: 'pedido_mesa', t: 'Lo pedido en tu mesa', d: 'En el tique, lo que lleva pedido hoy toda la mesa (de todos los móviles).' },
+  { k: 'letra_grande', t: 'Letra grande', d: 'Botón «A+» arriba para ver la carta más grande.' },
 ];
 const ROLES = { admin: 'Admin', barra: 'Barra', camarero: 'Camarero' };
 

@@ -86,6 +86,7 @@ function pintarHorario(id){
   c.aviso.classList.toggle("cerrada", !c.abierta);
   c.aviso.innerHTML = c.abierta ? "Se sirve " + esc(txt) + "." : "<b>Ahora no se sirve.</b> Horario: " + esc(txt) + ".";
   c.tab.classList.toggle("fuera", !c.abierta);
+  if(c.tile) c.tile.classList.toggle("fuera", !c.abierta);
 }
 
 /* ---------------- EL BAR: NOMBRE, SUBTÍTULO Y PIE ----------------
@@ -115,6 +116,7 @@ function pintarBar(info){
   Aspecto.aplicar(info, { instalable: true });
   pintarTextos();
   pintarLlamar();
+  pintarHerramientas();
   barNombreEl.textContent = String(info.nombre).toUpperCase();
   if(!document.body.classList.contains("modo-pedir") && !QR_INVALIDO) heroLine.textContent = info.subtitulo || "";
   const pie = (info.ajustes && Array.isArray(info.ajustes.pie)) ? info.ajustes.pie : [info.nombre];
@@ -312,19 +314,22 @@ function addCategory(id, name, buildItems, sec){
   if(sec) pintarHorario(id);
   const n = panel.querySelectorAll(".line-item").length;
   head.querySelector(".cat-count").textContent = n === 1 ? "1 producto" : n + " productos";
+  panel.dataset.n = n;
   if(!panel.querySelector(".li-allergens")) head.style.display = "none";
   menuEl.appendChild(panel);
   catPanels.push(panel);
 
-  tab.addEventListener("click", () => {
-    catTabButtons.forEach(t => t.classList.remove("active"));
-    catPanels.forEach(p => p.classList.remove("active"));
-    tab.classList.add("active");
-    panel.classList.add("active");
-    // Cada pestaña empieza en su primer producto (si estabas más abajo, se sube al principio).
-    if(window.scrollY > 0) window.scrollTo(0, 0);
-    tab.scrollIntoView({behavior:"smooth", block:"nearest", inline:"center"});
-  });
+  tab.addEventListener("click", () => mostrarPanel(tab, panel));
+}
+function mostrarPanel(tab, panel){
+  if(BUSCANDO) cerrarBuscador();
+  catTabs.querySelectorAll(".cat-tab").forEach(t => t.classList.remove("active"));
+  menuEl.querySelectorAll(".cat-panel").forEach(p => p.classList.remove("active"));
+  tab.classList.add("active");
+  panel.classList.add("active");
+  // Cada pestaña empieza en su primer producto (si estabas más abajo, se sube al principio).
+  if(window.scrollY > 0) window.scrollTo(0, 0);
+  tab.scrollIntoView({behavior:"smooth", block:"nearest", inline:"center"});
 }
 
 function renderCategories(){
@@ -356,44 +361,185 @@ function renderCategories(){
   // Carta según la hora (v30, opción carta_hora): primero lo que se sirve ahora.
   const secciones = opcion("carta_hora") ? MENU.filter(c => c.abierta !== false).concat(MENU.filter(c => c.abierta === false)) : MENU;
   secciones.forEach(sec => {
-    addCategory(sec.id, sec.name, (wrap) => {
-      let last = null;
-      const its = sec.items;
-      for(let i = 0; i < its.length; ){
-        const it = its[i];
-        if(sec.multi && it.sec !== last){ last = it.sec; const cp = document.createElement("div"); cp.className = "sec-cap"; cp.textContent = it.sec.charAt(0) + it.sec.slice(1).toLowerCase(); wrap.appendChild(cp); }
-        let j = i + 1;
-        if(it.size && !it.only){ while(j < its.length && its[j].dn === it.dn && its[j].size && !its[j].only) j++; }
-        if(j - i > 1){
-          const grp = its.slice(i, j);
-          const common = grp.every(x => x.d === grp[0].d);
-          const g = document.createElement("div"); g.className = "vgroup";
-          const h = document.createElement("div"); h.className = "vhead";
-          h.innerHTML = '<span class="li-name">' + esc(it.dn) + '</span>' + (common && it.d ? '<span class="li-sub">' + esc(it.d) + '</span>' : "");
-          // Fotos (v26): la miniatura del grupo (Tapa / Plato…) va en su cabecera.
-          const conFoto = grp.find(x => x.img);
-          if(conFoto){
-            h.classList.add("con-foto");
-            const fb = document.createElement("button");
-            fb.type = "button"; fb.className = "li-foto"; fb.setAttribute("aria-label", "Ver foto: " + it.dn);
-            fb.innerHTML = `<img src="${esc(conFoto.img)}" alt="" loading="lazy" decoding="async">`;
-            fb.addEventListener("click", () => abrirFicha(grp.map(x => PRODUCTS_BY_ID[String(x.dbId)] || x)));
-            h.insertBefore(fb, h.firstChild);
-          }
-          g.appendChild(h);
-          grp.forEach(x => { const o = Object.assign({}, x, {lab: x.size + (!common && x.d ? " · " + x.d : "")}); const w = buildLine(o); g.appendChild(w); });
-          wrap.appendChild(g);
-        } else {
-          wrap.appendChild(buildLine(it));
-        }
-        i = j;
-      }
-    }, sec);
+    addCategory(sec.id, sec.name, (wrap) => pintarProductos(wrap, sec.items, sec.multi), sec);
   });
 
-  catTabButtons[0].classList.add("active");
-  catPanels[0].classList.add("active");
+  if(opcion("pestanas_cuadricula") && catPanels.length > 1) crearCuadricula();
+  else {
+    catTabButtons[0].classList.add("active");
+    catPanels[0].classList.add("active");
+  }
   pintarAlergias();
+}
+
+/* ---------------- PESTAÑAS EN CUADRÍCULA (v31, opción pestanas_cuadricula) ----------------
+   Al abrir la carta, todas las pestañas en botones grandes (de dos en dos):
+   se ve de un vistazo todo lo que hay. Al tocar una se abre esa pestaña; el
+   botón ▦ del principio de la tira vuelve a la cuadrícula. */
+const catTiles = [];
+const ICONO_CUADRICULA = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6" fill="currentColor"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6" fill="currentColor"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6" fill="currentColor"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6" fill="currentColor"/></svg>';
+function crearCuadricula(){
+  const tab = document.createElement("button");
+  tab.type = "button";
+  tab.className = "cat-tab tab-cuadricula";
+  tab.setAttribute("aria-label", "Ver todas las pestañas");
+  tab.innerHTML = ICONO_CUADRICULA;
+  catTabs.insertBefore(tab, catTabs.firstChild);
+
+  const panel = document.createElement("div");
+  panel.className = "cat-panel cuadricula";
+  panel.id = "panel-_cuadricula";
+  panel.innerHTML = `<div class="cq-titulo">¿Qué te apetece?</div><div class="cq-grid"></div>`;
+  const grid = panel.querySelector(".cq-grid");
+  catPanels.forEach((p, idx) => {
+    const t = catTabButtons[idx];
+    const nombre = t.querySelector(".tab-label").textContent;
+    const n = Number(p.dataset.n) || 0;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "cq-tile" + (t.classList.contains("tab-recomendados") ? " cq-destacada" : "") + (t.classList.contains("fuera") ? " fuera" : "");
+    b.innerHTML = `<span class="cq-nombre">${esc(nombre.charAt(0) + nombre.slice(1).toLowerCase())}</span>`
+      + `<span class="cq-n">${n === 1 ? "1 producto" : n + " productos"}</span><span class="tab-badge"></span>`;
+    b.addEventListener("click", () => mostrarPanel(t, p));
+    grid.appendChild(b);
+    catTiles[idx] = b;
+    const id = p.id.replace(/^panel-/, "");
+    if(catInfo[id] && catInfo[id].tab === t) catInfo[id].tile = b;
+  });
+  menuEl.insertBefore(panel, menuEl.firstChild);
+  tab.addEventListener("click", () => mostrarPanel(tab, panel));
+  tab.classList.add("active");
+  panel.classList.add("active");
+}
+
+/* ---------------- BUSCADOR (v31, opción buscador) ----------------
+   La lupa de arriba abre un recuadro para escribir: busca en toda la carta
+   mientras se escribe (sin importar tildes ni mayúsculas) y cada resultado
+   lleva su + / − para añadirlo al momento. */
+const buscadorEl = document.getElementById("buscador");
+const buscarInput = document.getElementById("buscarInput");
+const resultadosEl = document.createElement("div");
+resultadosEl.id = "resultados";
+let BUSCANDO = false;
+let buscarTimer;
+function normalizar(t){ return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
+function abrirBuscador(){
+  buscadorEl.hidden = false;
+  buscarInput.focus();
+}
+function cerrarBuscador(){
+  clearTimeout(buscarTimer);
+  buscarInput.value = "";
+  buscadorEl.hidden = true;
+  buscar("");
+}
+// Quita los + / − de los resultados anteriores (para no dejar referencias sueltas).
+function limpiarResultados(){
+  Object.keys(rowRefs).forEach(k => { rowRefs[k] = rowRefs[k].filter(r => !r.busqueda); });
+  resultadosEl.innerHTML = "";
+}
+function buscar(texto){
+  const palabras = normalizar(texto).split(/\s+/).filter(Boolean);
+  limpiarResultados();
+  const antes = BUSCANDO;
+  BUSCANDO = palabras.join("").length >= 2;
+  document.body.classList.toggle("buscando", BUSCANDO);
+  if(!BUSCANDO){ if(antes) window.scrollTo(0, 0); return; }
+  if(!resultadosEl.parentNode) menuEl.appendChild(resultadosEl);
+  const MAX = 40;
+  let total = 0, pintados = 0;
+  MENU.forEach(sec => {
+    const hallados = sec.items.filter(it => {
+      const donde = normalizar(it.n + " " + (it.dn || "") + " " + (it.d || ""));
+      return palabras.every(p => donde.includes(p));
+    });
+    total += hallados.length;
+    const caben = hallados.slice(0, Math.max(0, MAX - pintados));
+    if(!caben.length) return;
+    const cap = document.createElement("div");
+    cap.className = "sec-cap";
+    cap.textContent = sec.name.charAt(0) + sec.name.slice(1).toLowerCase();
+    resultadosEl.appendChild(cap);
+    pintarProductos(resultadosEl, caben, false);
+    pintados += caben.length;
+  });
+  Object.keys(rowRefs).forEach(k => rowRefs[k].forEach(r => {
+    if(!r.busqueda && r.row && resultadosEl.contains(r.row)){ r.busqueda = true; pintarControles(k); }
+  }));
+  if(!total){
+    resultadosEl.innerHTML = `<div class="bus-nada">No hay nada con «${esc(texto.trim())}».<br>Prueba con otra palabra.</div>`;
+  } else if(total > pintados){
+    const m = document.createElement("div");
+    m.className = "bus-nada";
+    m.textContent = "Y " + (total - pintados) + " más: escribe alguna letra más para afinar.";
+    resultadosEl.appendChild(m);
+  }
+  pintarAlergias();
+  if(!antes || window.scrollY > 0) window.scrollTo(0, 0);
+}
+buscarInput.addEventListener("input", () => {
+  clearTimeout(buscarTimer);
+  buscarTimer = setTimeout(() => buscar(buscarInput.value), 150);
+});
+buscarInput.addEventListener("keydown", ev => {
+  if(ev.key === "Enter"){ ev.preventDefault(); buscarInput.blur(); }
+  if(ev.key === "Escape") cerrarBuscador();
+});
+document.getElementById("buscarBtn").addEventListener("click", () => { if(buscadorEl.hidden) abrirBuscador(); else cerrarBuscador(); });
+document.getElementById("buscarCerrar").addEventListener("click", cerrarBuscador);
+
+/* ---------------- LETRA GRANDE (v31, opción letra_grande) ----------------
+   El botón «A+» de arriba agranda la carta y el tique. Cada móvil lo recuerda. */
+const letraBtn = document.getElementById("letraBtn");
+let LETRA_GRANDE = (function(){ try { return leerLocal("carta.letra") === 1; } catch(e) { return false; } })();
+function pintarHerramientas(){
+  const conLetra = opcion("letra_grande"), conBuscar = opcion("buscador");
+  letraBtn.hidden = !conLetra;
+  document.getElementById("buscarBtn").hidden = !conBuscar;
+  document.querySelector(".ticket-head").classList.toggle("con-herr", conLetra || conBuscar);
+  document.body.classList.toggle("letra-grande", conLetra && LETRA_GRANDE);
+  letraBtn.setAttribute("aria-pressed", conLetra && LETRA_GRANDE ? "true" : "false");
+  if(!conBuscar && !buscadorEl.hidden) cerrarBuscador();
+}
+letraBtn.addEventListener("click", () => {
+  LETRA_GRANDE = !LETRA_GRANDE;
+  try { guardarLocal("carta.letra", LETRA_GRANDE ? 1 : 0); } catch(e) {}
+  pintarHerramientas();
+});
+
+// Pinta una lista de productos: los tamaños del mismo plato (Tapa / Plato…)
+// juntos bajo su nombre y, si la pestaña junta varias secciones, sus subtítulos.
+function pintarProductos(wrap, its, multi){
+  let last = null;
+  for(let i = 0; i < its.length; ){
+    const it = its[i];
+    if(multi && it.sec !== last){ last = it.sec; const cp = document.createElement("div"); cp.className = "sec-cap"; cp.textContent = it.sec.charAt(0) + it.sec.slice(1).toLowerCase(); wrap.appendChild(cp); }
+    let j = i + 1;
+    if(it.size && !it.only){ while(j < its.length && its[j].dn === it.dn && its[j].size && !its[j].only) j++; }
+    if(j - i > 1){
+      const grp = its.slice(i, j);
+      const common = grp.every(x => x.d === grp[0].d);
+      const g = document.createElement("div"); g.className = "vgroup";
+      const h = document.createElement("div"); h.className = "vhead";
+      h.innerHTML = '<span class="li-name">' + esc(it.dn) + '</span>' + (common && it.d ? '<span class="li-sub">' + esc(it.d) + '</span>' : "");
+      // Fotos (v26): la miniatura del grupo (Tapa / Plato…) va en su cabecera.
+      const conFoto = grp.find(x => x.img);
+      if(conFoto){
+        h.classList.add("con-foto");
+        const fb = document.createElement("button");
+        fb.type = "button"; fb.className = "li-foto"; fb.setAttribute("aria-label", "Ver foto: " + it.dn);
+        fb.innerHTML = `<img src="${esc(conFoto.img)}" alt="" loading="lazy" decoding="async">`;
+        fb.addEventListener("click", () => abrirFicha(grp.map(x => PRODUCTS_BY_ID[String(x.dbId)] || x)));
+        h.insertBefore(fb, h.firstChild);
+      }
+      g.appendChild(h);
+      grp.forEach(x => { const o = Object.assign({}, x, {lab: x.size + (!common && x.d ? " · " + x.d : "")}); const w = buildLine(o); g.appendChild(w); });
+      wrap.appendChild(g);
+    } else {
+      wrap.appendChild(buildLine(it));
+    }
+    i = j;
+  }
 }
 
 /* ---------------- ALERGIAS (v30, opción alergenos) ----------------
@@ -534,6 +680,7 @@ async function adjustSentItem(round, line, delta){
     editando = false;
     panelBody.classList.remove("ocupado");
     updateCartBar();
+    refrescarMesaPedida().then(c => { if(c) updateCartBar(); });
   }
 }
 
@@ -606,13 +753,16 @@ function updateTabBadges(){
     panel.querySelectorAll(".line-item").forEach(row => {
       sum += cart[row.dataset.key] || 0;
     });
-    const badge = catTabButtons[idx].querySelector(".tab-badge");
-    if(sum > 0){
-      badge.style.display = "inline-flex";
-      badge.textContent = sum;
-    } else {
-      badge.style.display = "none";
-    }
+    [catTabButtons[idx], catTiles[idx]].forEach(el => {
+      if(!el) return;
+      const badge = el.querySelector(".tab-badge");
+      if(sum > 0){
+        badge.style.display = "inline-flex";
+        badge.textContent = sum;
+      } else {
+        badge.style.display = "none";
+      }
+    });
   });
 }
 
@@ -668,6 +818,7 @@ function renderPanel(lines, total){
 
   if(rounds.length === 0 && lines.length === 0){
     panelBody.innerHTML = `<div class="cart-empty">TIQUE VACÍO<br>${esc(Aspecto.texto("tique_vacio"))}</div>`;
+    pintarMesaPedida();
     panelTotal.textContent = money(total);
     return;
   }
@@ -714,8 +865,49 @@ function renderPanel(lines, total){
     panelBody.appendChild(t);
   }
 
+  pintarMesaPedida();
   panelTotal.textContent = money(total);
 }
+
+/* ---------------- LO PEDIDO EN TU MESA (v31, opción pedido_mesa) ----------------
+   Al final del tique, lo que lleva pedido hoy toda la mesa (de todos los
+   móviles y lo que haya metido el camarero), sin cobrar: así nadie pide
+   dos veces lo mismo. No dice quién pidió qué. Lo da la base con el código
+   del QR; se pregunta al abrir el tique y cada 15 s mientras está abierto. */
+let MESA_PEDIDO = null;
+let firmaMesa = "";
+let pidiendoMesa = false;
+async function refrescarMesaPedida(){
+  if(!MESA || !opcion("pedido_mesa") || pidiendoMesa) return false;
+  pidiendoMesa = true;
+  try {
+    const r = await datosCarta.pedidoMesa(MESA.id, MESA_CODIGO);
+    const firma = JSON.stringify(r);
+    const cambio = firma !== firmaMesa;
+    firmaMesa = firma;
+    MESA_PEDIDO = r;
+    return cambio;
+  } catch(e) {
+    return false; // sin cobertura: se queda lo que había
+  } finally { pidiendoMesa = false; }
+}
+function pintarMesaPedida(){
+  if(!MESA || !opcion("pedido_mesa") || !MESA_PEDIDO || !Array.isArray(MESA_PEDIDO.lineas) || !MESA_PEDIDO.lineas.length) return;
+  const caja = document.createElement("div");
+  caja.className = "mesa-pedida";
+  const n = Number(MESA_PEDIDO.pedidos) || 0;
+  caja.innerHTML = `<div class="mp-cab"><b>EN TU MESA HOY</b><span>${n === 1 ? "1 pedido" : n + " pedidos"} · de todos los móviles</span></div>`;
+  MESA_PEDIDO.lineas.forEach(l => caja.appendChild(buildCartRow({ qty: Number(l.cantidad), name: l.nombre, price: Number(l.precio) }, "mesa")));
+  const t = document.createElement("div");
+  t.className = "mp-total";
+  t.innerHTML = `<span>Total de la mesa</span><span>${money(Number(MESA_PEDIDO.total) || 0)}</span>`;
+  caja.appendChild(t);
+  panelBody.appendChild(caja);
+}
+setInterval(async () => {
+  if(document.hidden || !panel.classList.contains("show") || editando) return;
+  if(await refrescarMesaPedida()) updateCartBar();
+}, 15000);
 
 function buildCartRow(l, mode, round){
   const row = document.createElement("div");
@@ -749,7 +941,8 @@ function buildCartRow(l, mode, round){
 async function openPanel(){
   overlay.classList.add("show"); panel.classList.add("show");
   updateCartBar();
-  if(await refreshRoundStatuses()) updateCartBar();
+  const cambios = await Promise.all([refreshRoundStatuses(), refrescarMesaPedida()]);
+  if(cambios[0] || cambios[1]) updateCartBar();
 }
 
 // Mientras haya pedidos sin servir, se pregunta a la base cada 6 s por su estado.
@@ -918,6 +1111,7 @@ async function sendOrder(){
     vaciarCarrito();
     closePanel();
     updateCartBar();
+    refrescarMesaPedida().then(c => { if(c) updateCartBar(); });
     aviso("PEDIDO ENVIADO", "Pedido " + p.ronda + " enviado (" + MESA.nombre + "). Durante 3 minutos puedes cambiarlo desde «Ver tique».", true);
     return;
   }

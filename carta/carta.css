@@ -621,3 +621,57 @@ html.mb-cargando body{ visibility:hidden; }
 .bv-mesa{ font-family:var(--font-texto); font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--acento-texto, var(--orange)); margin-bottom:4px; }
 .bv-pasos{ margin:14px 0 18px; padding-left:22px; font-family:var(--font-texto); font-size:15px; line-height:1.5; color:var(--ink); }
 .bv-pasos li{ margin:6px 0; }
+
+/* =====================================================================
+   CARTA MÁS FÁCIL, ENTREGA 2 (v31): opciones del bar, apagadas por defecto
+   ===================================================================== */
+/* Botones de arriba: «A+» (letra grande) a la izquierda y lupa a la derecha */
+.ticket-head{ position:relative; }
+.ticket-head.con-herr{ padding-left:58px !important; padding-right:58px !important; }
+.herr{ position:absolute; top:14px; width:42px; height:42px; display:flex; align-items:center; justify-content:center; padding:0; border-radius:50%; background:transparent; color:var(--sobre-principal); border:1.5px solid rgba(var(--sobre-principal-rgb, 255,255,255),.45); font-family:var(--font-texto); font-size:16px; font-weight:700; line-height:1; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.herr[hidden]{ display:none !important; }
+.herr:active{ background:rgba(var(--sobre-principal-rgb, 255,255,255),.14); }
+.herr-letra{ left:12px; }
+.herr-letra span{ font-size:12px; margin-left:1px; }
+.herr-letra[aria-pressed="true"]{ background:var(--orange); border-color:var(--orange); color:var(--sobre-acento); }
+.herr-buscar{ right:12px; }
+
+/* Buscador: recuadro debajo de la cabecera y resultados en lugar de la pestaña */
+.buscador{ display:flex; align-items:center; gap:8px; margin:0 12px 10px; padding:0 4px 0 12px; background:var(--paper); border-radius:12px; color:var(--ink-soft); }
+.buscador[hidden]{ display:none !important; }
+.buscador input{ flex:1; min-width:0; height:46px; border:0; outline:0; background:transparent; color:var(--ink); font-family:var(--font-texto); font-size:16px; -webkit-appearance:none; appearance:none; }
+.buscador input::-webkit-search-cancel-button{ display:none; }
+.buscador button{ flex:none; width:40px; height:40px; border:0; border-radius:50%; background:transparent; color:var(--ink); font-size:17px; cursor:pointer; }
+#resultados{ display:none; padding:6px 0 4px; }
+body.buscando #resultados{ display:block; }
+body.buscando .cat-panel{ display:none !important; }
+body.buscando .cat-tab.active{ color:rgba(var(--sobre-principal-rgb, 255,255,255),.68) !important; border-bottom-color:transparent !important; background:transparent !important; }
+.bus-nada{ text-align:center; padding:28px 10px; color:var(--ink-soft); font-family:var(--font-texto); font-size:14px; line-height:1.6; }
+
+/* Pestañas en cuadrícula */
+.cat-tab.tab-cuadricula{ padding-left:14px !important; padding-right:14px !important; }
+.cuadricula{ padding-top:16px !important; }
+.cq-titulo{ font-family:var(--font-titulos); font-size:21px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--navy-texto, var(--navy)); margin:4px 0 14px; }
+.cq-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.cq-tile{ position:relative; display:flex; flex-direction:column; justify-content:space-between; gap:8px; min-height:92px; padding:14px 14px 12px; text-align:left; border:1.5px solid var(--line); border-radius:14px; background:var(--paper-2); color:var(--ink); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.cq-tile:active{ border-color:var(--orange); }
+.cq-nombre{ font-family:var(--font-titulos); font-size:17px; font-weight:600; line-height:1.15; letter-spacing:.02em; color:var(--navy-texto, var(--navy)); overflow-wrap:anywhere; }
+.cq-n{ font-family:var(--font-texto); font-size:12px; color:var(--ink-soft); }
+.cq-tile .tab-badge{ position:absolute; bottom:10px; right:10px; background:var(--orange); color:var(--sobre-acento); min-width:22px; height:22px; font-size:12px; }
+.cq-tile.cq-destacada{ grid-column:1 / -1; min-height:72px; background:var(--navy); border-color:var(--navy); }
+.cq-tile.cq-destacada .cq-nombre{ color:var(--sobre-principal); }
+.cq-tile.cq-destacada .cq-nombre::before{ content:"★ "; color:var(--acento-sobre-principal, var(--orange)); }
+.cq-tile.cq-destacada .cq-n{ color:rgba(var(--sobre-principal-rgb, 255,255,255),.7); }
+.cq-tile.fuera{ opacity:.5; }
+.cq-tile.fuera .cq-n::after{ content:" · ahora no se sirve"; }
+
+/* Lo pedido en tu mesa: al final del tique */
+.mesa-pedida{ margin:18px 0 4px; padding:12px 14px; border:1.5px dashed var(--line); border-radius:12px; background:var(--paper-2); }
+.mp-cab{ display:flex; flex-direction:column; gap:2px; margin-bottom:6px; font-family:var(--font-texto); }
+.mp-cab b{ font-size:11.5px; letter-spacing:.1em; color:var(--navy-texto, var(--navy)); }
+.mp-cab span{ font-size:12px; color:var(--ink-soft); }
+.mesa-pedida .cart-row .cr-name{ font-weight:500 !important; font-size:13.5px !important; }
+.mp-total{ display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-family:var(--font-texto); font-size:14px; font-weight:700; color:var(--navy-texto, var(--navy)); }
+
+/* Letra grande: la carta y el tique, un 20 % más grandes (cada móvil lo recuerda) */
+body.letra-grande #menu, body.letra-grande .panel-body, body.letra-grande .cat-tabs{ zoom:1.2; }
