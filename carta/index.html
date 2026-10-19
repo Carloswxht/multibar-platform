@@ -96,6 +96,11 @@ var VERSION_WEB = 33;
   <button class="top-send" id="bottomSendBtn">Enviar pedido a barra</button>
   <div class="dock">
     <div class="dock-inner">
+      <!-- Sin subtotal desde la v33 (a petición de Carlos): el hueco se queda vacío -->
+      <div class="dock-hueco" aria-hidden="true">
+        <div class="lbl">&nbsp;</div>
+        <div class="amt">&nbsp;</div>
+      </div>
       <!-- «Llamar al camarero» / «Pedir la cuenta» (opción del bar avisos_mesa, solo con el QR de la mesa) -->
       <button class="llamar" id="llamarBtn" type="button" hidden aria-label="Llamar al camarero o pedir la cuenta"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span>CAMARERO</span></button>
       <button class="cta" id="openCartBtn">VER TIQUE</button>
