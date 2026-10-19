@@ -693,3 +693,12 @@ body.letra-grande #menu, body.letra-grande .panel-body, body.letra-grande .cat-t
 .al-op{ position:relative; }
 .al-op.sel{ border-color:var(--navy-texto, var(--navy)); background:color-mix(in srgb, var(--navy) 6%, var(--paper, #fff)); color:var(--ink); font-weight:600; }
 .al-op.sel::after{ content:"✓"; margin-left:auto; font-size:14px; font-weight:700; color:var(--navy-texto, var(--navy)); }
+
+/* Sin subtotal en la barra de abajo (v33, a petición de Carlos): solo «VER
+   TIQUE» (y «CAMARERO» si el bar lo tiene). El dinero se mira en el tique. */
+.dock-inner{ gap:12px; }
+.dock .cta{ flex:1; text-align:center; }
+.dock .llamar{ margin-left:0 !important; margin-right:0 !important; }
+.total-sub{ display:block; font-family:var(--font-texto); font-size:11px; font-weight:500; letter-spacing:.02em; text-transform:none; color:var(--ink-soft); margin-top:2px; }
+.total-sub[hidden]{ display:none !important; }
+.este-pedido{ display:flex; justify-content:space-between; padding:10px 0 2px; font-family:var(--font-texto); font-size:13.5px; font-weight:700; color:var(--ink-soft); }
