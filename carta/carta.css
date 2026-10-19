@@ -675,3 +675,21 @@ body.buscando .cat-tab.active{ color:rgba(var(--sobre-principal-rgb, 255,255,255
 
 /* Letra grande: la carta y el tique, un 20 % más grandes (cada móvil lo recuerda) */
 body.letra-grande #menu, body.letra-grande .panel-body, body.letra-grande .cat-tabs{ zoom:1.2; }
+
+/* Alergias más discretas (v32, a petición de Carlos): sin rojos ni rosas de
+   fondo. Franja y ventana en los colores del bar; en el plato, solo una
+   línea pequeña «Contiene …» con un punto rojo. */
+.alergia-franja, .alergia-franja.activa{ border:1px solid var(--line); border-radius:10px; background:var(--paper-2, #F4F5F7); padding:10px 12px; }
+.alergia-franja b, .alergia-franja.activa b{ display:flex; align-items:center; gap:8px; font-weight:600; color:var(--ink); }
+.alergia-franja b::before{ content:""; flex:none; width:16px; height:16px; border-radius:50%; border:1.5px solid currentColor; opacity:.55;
+  background:linear-gradient(currentColor, currentColor) center 3.5px / 1.5px 5px no-repeat, linear-gradient(currentColor, currentColor) center 10px / 1.5px 1.5px no-repeat; }
+.alergia-franja.activa b::before{ opacity:1; color:var(--navy-texto, var(--navy)); border-color:var(--navy-texto, var(--navy)); }
+.alergia-franja span{ flex:none; color:var(--ink-soft); font-size:12px; }
+.alergia-franja.activa span{ color:var(--navy-texto, var(--navy)); font-weight:600; text-decoration:underline; text-underline-offset:2px; }
+.line-item.con-alergia .li-name, .line-item.con-alergia .li-sublab{ color:var(--ink) !important; }
+.li-alergia{ display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--ink-soft); letter-spacing:.01em; margin-top:4px; }
+.li-alergia::before{ content:""; flex:none; width:6px; height:6px; border-radius:50%; background:#C0392B; }
+.li-alergia[hidden]{ display:none !important; }
+.al-op{ position:relative; }
+.al-op.sel{ border-color:var(--navy-texto, var(--navy)); background:color-mix(in srgb, var(--navy) 6%, var(--paper, #fff)); color:var(--ink); font-weight:600; }
+.al-op.sel::after{ content:"✓"; margin-left:auto; font-size:14px; font-weight:700; color:var(--navy-texto, var(--navy)); }

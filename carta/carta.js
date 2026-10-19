@@ -551,15 +551,15 @@ function pintarAlergias(){
   document.querySelectorAll(".alergia-franja").forEach(b => {
     b.classList.toggle("activa", ALERGIAS.length > 0);
     b.innerHTML = ALERGIAS.length
-      ? `<b>⚠ Sin ${esc(lista(nombres))}</b><span>Cambiar</span>`
-      : `<b>⚠ ¿Alergias?</b><span>Márcalas y te avisamos en cada plato</span>`;
+      ? `<b>Tus alergias: ${esc(lista(nombres))}</b><span>Cambiar</span>`
+      : `<b>¿Alergias?</b><span>Márcalas y te avisamos en cada plato</span>`;
   });
   document.querySelectorAll(".line-item").forEach(row => {
     const al = (row.dataset.al || "").split(" ").filter(Boolean);
     const lleva = al.filter(a => ALERGIAS.includes(a));
     row.classList.toggle("con-alergia", lleva.length > 0);
     const av = row.querySelector(".li-alergia");
-    if(av){ av.hidden = !lleva.length; av.textContent = lleva.length ? "Lleva " + lista(lleva.map(a => ALERGENOS[a][1].toLowerCase())) : ""; }
+    if(av){ av.hidden = !lleva.length; av.textContent = lleva.length ? "Contiene " + lista(lleva.map(a => ALERGENOS[a][1].toLowerCase())) : ""; }
   });
 }
 const alergiasEl = document.createElement("div");
