@@ -131,7 +131,12 @@ function pintarBar(info){
 function pintarTextos(){
   document.getElementById("openCartBtn").textContent = Aspecto.texto("ver_tique");
   document.getElementById("txtTuTique").textContent = Aspecto.texto("tu_tique");
-  document.getElementById("txtTotal").textContent = Aspecto.texto("total");
+  // Con el QR de la mesa, el total del tique es solo lo de este móvil (v33):
+  // «TU CUENTA · de este móvil», salvo que el bar haya puesto su propio texto.
+  const tTotal = Aspecto.texto("total");
+  const deEsteMovil = !!MESA && tTotal === "TOTAL CUENTA";
+  document.getElementById("txtTotal").textContent = deEsteMovil ? "TU CUENTA" : tTotal;
+  document.getElementById("totalSub").hidden = !deEsteMovil;
   document.getElementById("pieTique").textContent = document.body.classList.contains("modo-pedir") ? Aspecto.texto("pie_pedir") : Aspecto.texto("pie_mirar");
   if(CARTA_LISTA) updateCartBar();
 }
@@ -684,8 +689,6 @@ async function adjustSentItem(round, line, delta){
   }
 }
 
-const cartCountLbl = document.getElementById("cartCountLbl");
-const cartTotalLbl = document.getElementById("cartTotalLbl");
 const bottomSendBtn = document.getElementById("bottomSendBtn");
 const sendBtn = document.getElementById("sendBtn");
 let enviando = false;
@@ -729,8 +732,6 @@ function updateCartBar(){
   const count = cartCount(lines);
   const currentTotal = cartTotal(lines);
   const grandTotal = rounds.reduce((s,r) => s + r.total, 0) + currentTotal;
-  cartCountLbl.textContent = count === 1 ? "1 línea" : count + " líneas";
-  cartTotalLbl.textContent = money(currentTotal);
   renderPanel(lines, grandTotal);
   // Sin productos: de la barra de enviar solo queda una línea fina encima de la barra azul
   // Otra ronda (v30): sin nada escogido, la barra de enviar ofrece repetir el último pedido.
@@ -845,6 +846,13 @@ function renderPanel(lines, total){
     label.textContent = MESA ? "PEDIDO " + siguiente + " · SIN ENVIAR" : "TU PEDIDO";
     panelBody.appendChild(label);
     lines.forEach(l => panelBody.appendChild(buildCartRow(l, "current")));
+    // Con pedidos ya enviados, lo de este pedido aparte del total de la cuenta (v33).
+    if(rounds.length){
+      const sub = document.createElement("div");
+      sub.className = "este-pedido";
+      sub.innerHTML = `<span>Este pedido</span><span>${money(cartTotal(lines))}</span>`;
+      panelBody.appendChild(sub);
+    }
   }
 
   // Otra ronda (v30): en el tique, repetir el último pedido.
