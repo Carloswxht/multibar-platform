@@ -1,6 +1,6 @@
 # PLATAFORMA · las bases de todo el plan de autonomIA Lab
 
-> **Versión de las bases: 9 (19 oct 2026).** Al empezar una sesión, comparar este número con la copia maestra (`Carloswxht/AutonomIA-Lab`, archivo `PLATAFORMA.md`); si la de aquí es más antigua, avisar a Carlos y copiar la maestra antes de trabajar. Cada cambio en este archivo sube el número.
+> **Versión de las bases: 10 (20 oct 2026).** Al empezar una sesión, comparar este número con la copia maestra (`Carloswxht/AutonomIA-Lab`, archivo `PLATAFORMA.md`); si la de aquí es más antigua, avisar a Carlos y copiar la maestra antes de trabajar. Cada cambio en este archivo sube el número.
 >
 > **Archivo común a todos los repositorios de autonomIA Lab.** Es idéntico en cada uno (`autonomialab`, `multibar-platform` y los que vengan). La **copia maestra** está en el repositorio `AutonomIA-Lab`. Si cambias algo aquí, cópialo igual en todos los repositorios y avisa a Carlos. Lo propio de cada producto va en el `CLAUDE.md` de su repositorio, no aquí.
 
@@ -38,6 +38,12 @@
 - **Registro abierto**: en Gymbro la gente puede crearse la cuenta sola. Es una opción de cada negocio (`registro_abierto`, apagada por defecto), encendida en War300.
 - Gymbro tendrá su **panel de plataforma** en `gymbro.autonomialab.es/plataforma/` (estilo autonomIA Lab, entrada con la cuenta de plataforma de Carlos) y un **panel para el dueño** de cada negocio (rol `admin` en `socios_gymbro`).
 - Se publica como MultiBar: GitHub Pages en `gymbro.autonomialab.es`. War300 está hoy en Cloudflare: se quita cuando la dirección nueva funcione.
+
+## Decisiones del 20 oct (Carlos): una sola base, muy protegida
+- **Todo sigue en una sola base (`autonomialab-db`), también lo de autonomIA Lab** (carpeta `autonomialab`). No se abre otra base para la empresa: los datos más valiosos (negocios, sus datos legales y los clientes de cada negocio) ya están aquí, y una base aparte en la misma cuenta de Supabase no protege del riesgo mayor (que alguien entre en la cuenta). Se pone el esfuerzo en blindar esta.
+- **Ningún servidor ni web lleva la llave maestra de Supabase (`service_role`).** La SaaS en Next.js (Hetzner), igual que MultiBar y Gymbro, solo llama a funciones con la clave pública, y cada función comprueba usuario, negocio y rol. Así, si un servidor o una web se ven comprometidos, solo se puede hacer lo que esas funciones permiten. La llave maestra solo vive dentro de Supabase (Edge Functions), nunca en un repositorio ni en el servidor de la SaaS.
+- **Orden de seguridad acordado:** 1) verificación en 2 pasos en el Gmail de Carlos (hoy desactivada: es la llave de todo); 2) verificación en 2 pasos en Supabase y GitHub; 3) la regla de arriba (sin llave maestra fuera de Supabase); 4) plan Pro con copias diarias y una copia semanal cifrada fuera de Supabase, antes del primer cliente de pago; 5) seguir con tablas cerradas, todo por funciones, pruebas con dos negocios en cada cambio y revisar los avisos de seguridad de Supabase.
+- Excepción que se mantiene: un cliente grande que exija por contrato base propia, aparte y cobrada aparte.
 
 ## Repositorios, dominios y sesiones
 - `Carloswxht/multibar-platform` → MultiBar, `https://carta.autonomialab.es` (GitHub Pages).
