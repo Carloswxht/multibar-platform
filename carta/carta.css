@@ -699,3 +699,11 @@ body.letra-grande #menu, body.letra-grande .panel-body, body.letra-grande .cat-t
 .total-sub{ display:block; font-family:var(--font-texto); font-size:11px; font-weight:500; letter-spacing:.02em; text-transform:none; color:var(--ink-soft); margin-top:2px; }
 .total-sub[hidden]{ display:none !important; }
 .este-pedido{ display:flex; justify-content:space-between; padding:10px 0 2px; font-family:var(--font-texto); font-size:13.5px; font-weight:700; color:var(--ink-soft); }
+
+/* Cobrar por separado y pedidos al camarero (v34, opción cobro_separado) */
+.round-label.est-pagado{ color:#2E7D4F !important; }
+.pedido-camarero{ margin:16px 0 4px; padding:10px 14px 8px; border:1.5px solid var(--line); border-left:4px solid var(--navy); border-radius:12px; background:var(--paper-2); }
+.pedido-camarero .round-label{ margin:0 0 4px; }
+.pc-pie{ display:flex; justify-content:space-between; gap:10px; padding-top:8px; font-family:var(--font-texto); font-size:12px; color:var(--ink-soft); }
+.pc-pie span:last-child{ font-weight:700; white-space:nowrap; }
+.mp-camarero{ font-family:var(--font-texto); font-size:11.5px; font-weight:700; letter-spacing:.06em; color:var(--navy-texto, var(--navy)); margin:10px 0 0; }
