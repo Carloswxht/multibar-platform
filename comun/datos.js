@@ -14,7 +14,8 @@
    ===================================================================== */
 
 /* ---------------- DIRECCIÓN Y CLAVE PÚBLICA DE LA BASE ---------------- */
-const DATA_API = 'https://dorunbacwnkwdatfscri.supabase.co/rest/v1';
+const SUPABASE_URL = 'https://dorunbacwnkwdatfscri.supabase.co';
+const DATA_API = SUPABASE_URL + '/rest/v1';
 const CLAVE_PUBLICA = 'sb_publishable_PK12CcvGBEZsFT9lsLpSIA_IsP-v8iS';
 // Pequeños programas del servidor de Supabase (Edge Functions): hoy solo
 // «recuperar-contrasena», que manda el correo para recuperar la contraseña.
@@ -37,8 +38,9 @@ function usarBar(slug){ if(slug) BAR = slug; }
 /* ---------------- LLAMADA A LAS "VENTANILLAS" DE LA BASE ----------------
    La web no toca tablas: solo llama a funciones de la base (ver
    datos/funciones.sql), que comprueban todo. Cada llamada lleva la clave
-   pública de Supabase. */
-async function apiRpc(nombre, params){
+   pública de Supabase. Con el login de Supabase (v35), las del panel y la
+   plataforma llevan además la sesión de la persona (jwt). */
+async function apiRpc(nombre, params, jwt){
   // Con mala cobertura una llamada puede quedarse colgada: se corta a los 20 s.
   const corte = window.AbortController ? new AbortController() : null;
   const reloj = corte ? setTimeout(() => corte.abort(), 20000) : null;
@@ -46,7 +48,7 @@ async function apiRpc(nombre, params){
   try {
     const r = await fetch(DATA_API + '/rpc/' + nombre, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': CLAVE_PUBLICA },
+      headers: Object.assign({ 'Content-Type': 'application/json', 'apikey': CLAVE_PUBLICA }, jwt ? { 'Authorization': 'Bearer ' + jwt } : {}),
       cache: 'no-store', body: JSON.stringify(params || {}),
       signal: corte ? corte.signal : undefined,
     });
@@ -123,6 +125,8 @@ function textoError(codigo){
     ASPECTO_NO_VALIDO: 'Algún color, letra o texto no es válido. Revísalo.',
     LOGO_NO_VALIDO: 'Ese logo no se ha podido usar. Prueba con una imagen PNG o JPG.',
     DATOS_NO_VALIDOS: 'Algún dato es demasiado largo o no es válido.',
+    DEMASIADOS_INTENTOS: 'Demasiados intentos seguidos. Espera unos minutos y vuelve a probar.',
+    MISMA_PASSWORD: 'La contraseña nueva tiene que ser distinta de la actual.',
   };
   return textos[base] || ('Algo ha fallado (' + c + '). Inténtalo otra vez.');
 }
@@ -179,27 +183,86 @@ const datosCarta = {
   cuenta: (mesa, codigo) => apiRpc('carta_cuenta_multibar', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || ''), p_dispositivo: dispositivoId() }),
 };
 
+/* ---------------- LOGIN CON SUPABASE (v35) ----------------
+   Desde la v35 el personal y la plataforma entran con el login de Supabase
+   (Supabase Auth: más seguro, con freno a ataques). La librería oficial
+   (comun/supabase.js, copia dentro de la web: nada se carga de fuera) guarda
+   la sesión en el móvil y la renueva sola. La base reconoce a la persona por
+   su sesión (auth.uid()) y sigue comprobando bar y rol en cada función.
+   Panel y plataforma tienen sesiones aparte (cada una con su clave). Las
+   sesiones antiguas con token (web v34) siguen valiendo hasta que caduquen. */
+const clientesSupabase = {};
+function clienteSupabase(clave){
+  if(!clientesSupabase[clave]){
+    if(!window.supabase || !window.supabase.createClient) return null;
+    clientesSupabase[clave] = window.supabase.createClient(SUPABASE_URL, CLAVE_PUBLICA, {
+      auth: { storageKey: clave, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+    });
+  }
+  return clientesSupabase[clave];
+}
+// Sesión de Supabase en vigor (la renueva si hace falta), o null.
+async function jwtSupabase(clave){
+  const sb = clienteSupabase(clave);
+  if(!sb) return null;
+  try { const { data } = await sb.auth.getSession(); return data && data.session ? data.session.access_token : null; }
+  catch(e) { return null; }
+}
+// El dictado añade a veces espacios o un punto al final del correo (bases v11).
+function limpiarCorreo(email){ return String(email || '').trim().replace(/[\s.]+$/, '').toLowerCase(); }
+// Error del login de Supabase → código con texto en español.
+function codigoAuth(error){
+  const st = Number(error && error.status) || 0;
+  if(st === 429) return 'DEMASIADOS_INTENTOS';
+  if(st === 0 || st >= 500 || (error && error.name === 'AuthRetryableFetchError')) return 'SIN_CONEXION';
+  if(error && (error.code === 'same_password' || /different from the old/i.test(error.message || ''))) return 'MISMA_PASSWORD';
+  if(error && (error.code === 'weak_password')) return 'PASSWORD_CORTA';
+  return 'CREDENCIALES';
+}
+// Entrar con Supabase y preguntar a la base quién es (función «yo»). Si la
+// cuenta no vale aquí (otro producto, de baja…), se cierra y se dice
+// «correo o contraseña incorrectos», sin dar más pistas.
+async function entrarSupabase(clave, email, password, funcionYo){
+  const sb = clienteSupabase(clave);
+  if(!sb) throw new ErrorDatos('SIN_CONEXION');
+  let res;
+  try { res = await sb.auth.signInWithPassword({ email: limpiarCorreo(email), password: String(password || '') }); }
+  catch(e) { throw new ErrorDatos('SIN_CONEXION'); }
+  if(res.error || !res.data || !res.data.session) throw new ErrorDatos(codigoAuth(res.error));
+  try {
+    return await apiRpc(funcionYo, { p_token: null }, res.data.session.access_token);
+  } catch(e) {
+    try { await sb.auth.signOut({ scope: 'local' }); } catch(x) { /* ya está fuera */ }
+    throw new ErrorDatos(e.codigo === 'SESION_CADUCADA' ? 'CREDENCIALES' : (e.codigo || 'ERROR_SERVIDOR'));
+  }
+}
+async function salirSupabase(clave){
+  const sb = clienteSupabase(clave);
+  if(!sb) return;
+  try { await sb.auth.signOut(); } catch(e) { try { await sb.auth.signOut({ scope: 'local' }); } catch(x) { /* ya está fuera */ } }
+}
+
 /* ---------------- LOGIN DEL PERSONAL ----------------
-   El login es propio de la base (sin cookies), para que funcione igual en
-   iPhone (Safari) y Android. Se guarda en el móvil solo el token de la
-   sesión (dura 16 h), el nombre/rol y el bar del usuario para pintar el panel. */
+   Se guarda en el móvil, además de la sesión de Supabase, el nombre/rol y
+   el bar del usuario para pintar el panel. */
 const CLAVE_SESION = 'lmdg.sesion';
+const AUTH_PANEL = 'mb.auth.panel';
 
 function getSesion(){ return leerLocal(CLAVE_SESION); }
 function getAuthTokenPersonal(){ const s = getSesion(); return s ? s.token : null; }
 
 async function login(email, password){
-  const r = await apiRpc('personal_entrar', { p_email: email, p_password: password });
-  if(!r || r.error) throw new ErrorDatos((r && r.error) || 'CREDENCIALES');
-  const sesion = { token: r.token, nombre: r.nombre, rol: r.rol, email: r.email, cambiarPassword: !!r.cambiar_password, bar: r.bar || null };
+  const r = await entrarSupabase(AUTH_PANEL, email, password, 'personal_yo');
+  const sesion = { supabase: true, token: null, nombre: r.nombre, rol: r.rol, email: r.email, cambiarPassword: !!r.cambiar_password, bar: r.bar || null };
   guardarLocal(CLAVE_SESION, sesion);
   return sesion;
 }
 
 async function logout(){
-  const token = getAuthTokenPersonal();
+  const s = getSesion();
   guardarLocal(CLAVE_SESION, null);
-  if(token){ try { await apiRpc('personal_salir', { p_token: token }); } catch(e) { /* ya está fuera */ } }
+  if(s && s.supabase){ await salirSupabase(AUTH_PANEL); return; }
+  if(s && s.token){ try { await apiRpc('personal_salir', { p_token: s.token }); } catch(e) { /* ya está fuera */ } }
 }
 
 // Comprueba con la base que la sesión sigue viva (y refresca nombre/rol).
@@ -207,7 +270,14 @@ async function comprobarSesion(){
   const s = getSesion();
   if(!s) return null;
   try {
-    const r = await apiRpc('personal_yo', { p_token: s.token });
+    let r;
+    if(s.supabase){
+      const jwt = await jwtSupabase(AUTH_PANEL);
+      if(!jwt) throw new ErrorDatos('SESION_CADUCADA');
+      r = await apiRpc('personal_yo', { p_token: null }, jwt);
+    } else {
+      r = await apiRpc('personal_yo', { p_token: s.token });
+    }
     const nueva = Object.assign({}, s, { nombre: r.nombre, rol: r.rol, email: r.email, cambiarPassword: !!r.cambiar_password, bar: r.bar || s.bar || null });
     guardarLocal(CLAVE_SESION, nueva);
     return nueva;
@@ -218,9 +288,24 @@ async function comprobarSesion(){
 }
 
 async function cambiarPassword(actual, nueva){
-  await apiRpc('personal_cambiar_password', { p_token: getAuthTokenPersonal(), p_actual: actual, p_nueva: nueva });
   const s = getSesion();
-  if(s){ s.cambiarPassword = false; guardarLocal(CLAVE_SESION, s); }
+  if(s && s.supabase){
+    // Con Supabase: se comprueba la actual volviendo a entrar y se cambia.
+    // La base copia la nueva contraseña sola y quita «debe cambiarla».
+    if(String(nueva || '').length < 8) throw new ErrorDatos('PASSWORD_CORTA');
+    const sb = clienteSupabase(AUTH_PANEL);
+    let res;
+    try { res = await sb.auth.signInWithPassword({ email: limpiarCorreo(s.email), password: String(actual || '') }); }
+    catch(e) { throw new ErrorDatos('SIN_CONEXION'); }
+    if(res.error) throw new ErrorDatos(codigoAuth(res.error));
+    try { res = await sb.auth.updateUser({ password: String(nueva) }); }
+    catch(e) { throw new ErrorDatos('SIN_CONEXION'); }
+    if(res.error) throw new ErrorDatos(codigoAuth(res.error) === 'CREDENCIALES' ? 'ERROR_SERVIDOR' : codigoAuth(res.error));
+  } else {
+    await apiRpc('personal_cambiar_password', { p_token: getAuthTokenPersonal(), p_actual: actual, p_nueva: nueva });
+  }
+  const t = getSesion();
+  if(t){ t.cambiarPassword = false; guardarLocal(CLAVE_SESION, t); }
 }
 
 /* Recuperar la contraseña por correo (v18). El servidor contesta siempre
@@ -232,7 +317,7 @@ async function pedirEnlaceRecuperar(email, bienvenida){
   try {
     r = await fetch(FUNCIONES_API + '/recuperar-contrasena', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
-      body: JSON.stringify(bienvenida ? { email: String(email || '').trim(), bienvenida: true } : { email: String(email || '').trim() }),
+      body: JSON.stringify(bienvenida ? { email: limpiarCorreo(email), bienvenida: true } : { email: limpiarCorreo(email) }),
       signal: corte ? corte.signal : undefined,
     });
   } catch(e) {
@@ -249,8 +334,9 @@ async function subirFotoProducto(productoId, imagen){
   const reloj = corte ? setTimeout(() => corte.abort(), 45000) : null;
   let r, d = {};
   try {
+    const jwt = (getSesion() || {}).supabase ? await jwtSupabase(AUTH_PANEL) : null;
     r = await fetch(FUNCIONES_API + '/subir-foto', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+      method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, jwt ? { 'Authorization': 'Bearer ' + jwt } : {}), cache: 'no-store',
       body: JSON.stringify({ token: getAuthTokenPersonal(), producto: Number(productoId), imagen: imagen || null }),
       signal: corte ? corte.signal : undefined,
     });
@@ -270,9 +356,16 @@ function restablecerPassword(token, nueva){
   return apiRpc('personal_restablecer', { p_token: String(token || ''), p_nueva: nueva });
 }
 
-// Llamada del panel con el token de la sesión. Si caduca, se borra la sesión.
+// Llamada del panel con la sesión (de Supabase o, si es de la v34, el token).
+// Si caduca, se borra la sesión.
 async function rpcPersonal(nombre, params){
   try {
+    const s = getSesion();
+    if(s && s.supabase){
+      const jwt = await jwtSupabase(AUTH_PANEL);
+      if(!jwt) throw new ErrorDatos('SESION_CADUCADA');
+      return await apiRpc(nombre, Object.assign({ p_token: null }, params || {}), jwt);
+    }
     return await apiRpc(nombre, Object.assign({ p_token: getAuthTokenPersonal() }, params || {}));
   } catch(e) {
     if(e.codigo === 'SESION_CADUCADA') guardarLocal(CLAVE_SESION, null);
@@ -327,10 +420,16 @@ const datosPanel = {
    clave), así un mismo móvil puede tener las dos abiertas.
    ===================================================================== */
 const CLAVE_PLATAFORMA = 'mb.plataforma';
+const AUTH_PLATAFORMA = 'mb.auth.plataforma';
 function getSesionPlataforma(){ return leerLocal(CLAVE_PLATAFORMA); }
 async function rpcPlataforma(nombre, params){
   const s = getSesionPlataforma();
   try {
+    if(s && s.supabase){
+      const jwt = await jwtSupabase(AUTH_PLATAFORMA);
+      if(!jwt) throw new ErrorDatos('SESION_CADUCADA');
+      return await apiRpc(nombre, Object.assign({ p_token: null }, params || {}), jwt);
+    }
     return await apiRpc(nombre, Object.assign({ p_token: s ? s.token : null }, params || {}));
   } catch(e) {
     if(e.codigo === 'SESION_CADUCADA') guardarLocal(CLAVE_PLATAFORMA, null);
@@ -347,8 +446,9 @@ async function subirLogoPlataforma(barId, imagen){
   const reloj = corte ? setTimeout(() => corte.abort(), 45000) : null;
   let r, d = {};
   try {
+    const jwt = s && s.supabase ? await jwtSupabase(AUTH_PLATAFORMA) : null;
     r = await fetch(FUNCIONES_API + '/subir-logo', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store',
+      method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, jwt ? { 'Authorization': 'Bearer ' + jwt } : {}), cache: 'no-store',
       body: JSON.stringify({ token: s ? s.token : null, bar: Number(barId), imagen }),
       signal: corte ? corte.signal : undefined,
     });
@@ -365,15 +465,15 @@ async function subirLogoPlataforma(barId, imagen){
 const datosPlataforma = {
   sesion: getSesionPlataforma,
   async entrar(email, password){
-    const r = await apiRpc('plataforma_entrar', { p_email: email, p_password: password });
-    if(!r || r.error) throw new ErrorDatos((r && r.error) || 'CREDENCIALES');
-    const s = { token: r.token, nombre: r.nombre, email: r.email };
+    const r = await entrarSupabase(AUTH_PLATAFORMA, email, password, 'plataforma_yo');
+    const s = { supabase: true, token: null, nombre: r.nombre, email: r.email };
     guardarLocal(CLAVE_PLATAFORMA, s);
     return s;
   },
   async salir(){
     const s = getSesionPlataforma();
     guardarLocal(CLAVE_PLATAFORMA, null);
+    if(s && s.supabase){ await salirSupabase(AUTH_PLATAFORMA); return; }
     if(s){ try { await apiRpc('personal_salir', { p_token: s.token }); } catch(e) { /* ya está fuera */ } }
   },
   yo: () => rpcPlataforma('plataforma_yo'),

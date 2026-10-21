@@ -83,8 +83,32 @@ returns multibar.usuarios_multibar
 language plpgsql security definer
 set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare s multibar.usuarios_multibar;
+declare s multibar.usuarios_multibar; v_uid uuid;
 begin
+  -- Login de Supabase (v35): sin token, la persona es la de su sesión de
+  -- Supabase (auth.uid()). «uid:<id>» solo lo acepta la clave secreta del
+  -- servidor (Edge Functions, que ya han comprobado la sesión de Supabase).
+  if coalesce(p_token, '') = '' then
+    v_uid := auth.uid();
+  elsif p_token like 'uid:%' and (coalesce(auth.role(), '') = 'service_role'
+                                   or coalesce(current_setting('role', true), '') = 'service_role') then
+    begin
+      v_uid := substr(p_token, 5)::uuid;
+    exception when others then
+      raise exception 'SESION_CADUCADA';
+    end;
+  end if;
+  if v_uid is not null then
+    select st.* into s
+      from comun.usuarios u
+      join multibar.usuarios_multibar st on st.id = u.id
+      join multibar.bares_multibar b on b.id = st.negocio_id
+     where u.auth_id = v_uid and st.active and b.activo;
+    if not found then
+      raise exception 'SESION_CADUCADA';
+    end if;
+    return s;
+  end if;
   if p_token is null or length(p_token) <> 64 then
     raise exception 'SESION_CADUCADA';
   end if;
@@ -1640,8 +1664,30 @@ returns comun.usuarios
 language plpgsql security definer
 set search_path = public, comun, multibar, privado, pg_temp
 as $$
-declare u comun.usuarios;
+declare u comun.usuarios; v_uid uuid;
 begin
+  -- Login de Supabase (v35): igual que privado.staff_de_token. La usan
+  -- también las funciones de plataforma de Gymbro: con token, todo igual.
+  if coalesce(p_token, '') = '' then
+    v_uid := auth.uid();
+  elsif p_token like 'uid:%' and (coalesce(auth.role(), '') = 'service_role'
+                                   or coalesce(current_setting('role', true), '') = 'service_role') then
+    begin
+      v_uid := substr(p_token, 5)::uuid;
+    exception when others then
+      raise exception 'SESION_CADUCADA';
+    end;
+  end if;
+  if v_uid is not null then
+    select us.* into u
+      from comun.usuarios us
+      join comun.negocios n on n.id = us.negocio_id
+     where us.auth_id = v_uid and us.active and n.activo and n.tipo = 'plataforma';
+    if not found then
+      raise exception 'SESION_CADUCADA';
+    end if;
+    return u;
+  end if;
   if p_token is null or length(p_token) <> 64 then
     raise exception 'SESION_CADUCADA';
   end if;

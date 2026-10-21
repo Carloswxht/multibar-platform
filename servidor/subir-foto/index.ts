@@ -15,7 +15,8 @@
 // Las fotos anteriores no se borran (no se borra nada).
 //
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los pone Supabase solo.
-// Desplegar con verify_jwt = false (la web no tiene sesión de Supabase).
+// Desplegar con verify_jwt = false: la sesión de Supabase (v35) se comprueba
+// aquí mismo (función «quien»), y así sigue valiendo el token de la v34.
 // =====================================================================
 
 const CORS = {
@@ -51,6 +52,25 @@ async function rpc(url: string, clave: string, nombre: string, params: unknown) 
   return texto ? JSON.parse(texto) : null;
 }
 
+// Login de Supabase (v35): la web manda su sesión de Supabase en la cabecera
+// «Authorization: Bearer …». Se comprueba aquí, con Supabase, de quién es, y
+// se pasa a la base como «uid:<id>» (la base solo lo acepta con la clave
+// secreta). El token antiguo de la web v34 (64 letras y números) sigue
+// valiendo. Nunca se acepta un «uid:» que venga de la web.
+async function quien(req: Request, url: string, clave: string, tokenCuerpo: string): Promise<string> {
+  if (/^[0-9a-f]{64}$/.test(tokenCuerpo)) return tokenCuerpo;
+  const m = (req.headers.get('authorization') || '').match(/^Bearer\s+(\S+)$/i);
+  if (!m || m[1] === clave) return '';
+  try {
+    const r = await fetch(url + '/auth/v1/user', { headers: { apikey: clave, Authorization: 'Bearer ' + m[1] } });
+    if (!r.ok) return '';
+    const u = await r.json();
+    return u && typeof u.id === 'string' && /^[0-9a-f-]{36}$/.test(u.id) ? 'uid:' + u.id : '';
+  } catch (_) {
+    return '';
+  }
+}
+
 function azar() {
   const b = new Uint8Array(9);
   crypto.getRandomValues(b);
@@ -67,9 +87,10 @@ export async function atender(req: Request): Promise<Response> {
 
   let datos: { token?: unknown; producto?: unknown; imagen?: unknown };
   try { datos = await req.json(); } catch (_) { return fallo('FALTAN_DATOS'); }
-  const token = typeof datos.token === 'string' ? datos.token : '';
+  const token = await quien(req, url, clave, typeof datos.token === 'string' ? datos.token : '');
   const producto = Number(datos.producto);
-  if (!token || !Number.isInteger(producto) || producto <= 0) return fallo('FALTAN_DATOS');
+  if (!Number.isInteger(producto) || producto <= 0) return fallo('FALTAN_DATOS');
+  if (!token) return fallo('SESION_CADUCADA', 401);
 
   // Foto: JPEG en base64, de 1 MB como mucho y que empiece como un JPEG de verdad.
   let bytes: Uint8Array | null = null;
