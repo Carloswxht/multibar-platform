@@ -175,6 +175,8 @@ const datosCarta = {
   aviso: (mesa, codigo, tipo) => apiRpc('carta_aviso_multibar', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || ''), p_tipo: tipo }),
   // «En tu mesa hoy» (v31): lo pedido hoy por toda la mesa, sin cobrar.
   pedidoMesa: (mesa, codigo) => apiRpc('carta_pedido_mesa_multibar', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || '') }),
+  // Cobrar por separado (v34): número de este móvil en la mesa y pedidos hechos al camarero.
+  cuenta: (mesa, codigo) => apiRpc('carta_cuenta_multibar', { p_bar: BAR, p_mesa: Number(mesa), p_codigo: String(codigo || ''), p_dispositivo: dispositivoId() }),
 };
 
 /* ---------------- LOGIN DEL PERSONAL ----------------

@@ -136,7 +136,9 @@ function pintarTextos(){
   const tTotal = Aspecto.texto("total");
   const deEsteMovil = !!MESA && tTotal === "TOTAL CUENTA";
   document.getElementById("txtTotal").textContent = deEsteMovil ? "TU CUENTA" : tTotal;
-  document.getElementById("totalSub").hidden = !deEsteMovil;
+  const sub = document.getElementById("totalSub");
+  sub.hidden = !deEsteMovil;
+  sub.textContent = "de este móvil" + (deEsteMovil && CUENTA && CUENTA.movil ? " · Móvil " + CUENTA.movil : "");
   document.getElementById("pieTique").textContent = document.body.classList.contains("modo-pedir") ? Aspecto.texto("pie_pedir") : Aspecto.texto("pie_mirar");
   if(CARTA_LISTA) updateCartBar();
 }
@@ -621,6 +623,7 @@ function aRonda(p, ahora){
     orderId: p.id,
     destino: p.destino || null,   // 'barra' | 'cocina' si el bar los separa (v15)
     status: p.estado,
+    cobrado: !!p.cobrado,         // ya pagado (cobrar por separado, v34)
     editableHasta: (ahora || Date.now()) + (Number(p.editable_seg) || 0) * 1000,
     lines: (p.lineas || []).map(l => ({
       itemId: l.id, key: String(l.producto), name: l.nombre,
@@ -731,7 +734,8 @@ function updateCartBar(){
   const lines = cartLines();
   const count = cartCount(lines);
   const currentTotal = cartTotal(lines);
-  const grandTotal = rounds.reduce((s,r) => s + r.total, 0) + currentTotal;
+  // Con «cobrar por separado» (v34), lo ya pagado no cuenta en «Tu cuenta».
+  const grandTotal = rounds.reduce((s,r) => s + (r.cobrado && opcion("cobro_separado") ? 0 : r.total), 0) + currentTotal;
   renderPanel(lines, grandTotal);
   // Sin productos: de la barra de enviar solo queda una línea fina encima de la barra azul
   // Otra ronda (v30): sin nada escogido, la barra de enviar ofrece repetir el último pedido.
@@ -790,6 +794,7 @@ function pedidosDelTique(lista){
     g.partes.sort((a, b) => a.orderId - b.orderId); // siempre en el mismo orden
     g.status = g.partes.some(r => r.status === 'enviado') ? 'enviado'
       : (g.partes.some(r => r.status === 'en_preparacion') ? 'en_preparacion' : 'servido');
+    g.pagado = g.partes.every(r => r.cobrado);
   });
   return grupos;
 }
@@ -801,9 +806,10 @@ function appendRound(g, withDivider){
   if(withDivider) panelBody.appendChild(document.createElement("hr")).className = "round-divider";
   const editable = parteEditable(g);
   const label = document.createElement("div");
-  const est = g.status === 'servido' ? "est-servido" : (g.status === 'en_preparacion' ? "est-prep" : "est-enviado");
+  const pagado = g.pagado && opcion("cobro_separado");
+  const est = pagado ? "est-pagado" : (g.status === 'servido' ? "est-servido" : (g.status === 'en_preparacion' ? "est-prep" : "est-enviado"));
   label.className = "round-label " + est + (editable ? " editable" : "");
-  label.innerHTML = `<span>PEDIDO ${g.num} · ${roundLabel(g)}</span>`
+  label.innerHTML = `<span>PEDIDO ${g.num} · ${pagado ? "PAGADO ✓" : roundLabel(g)}</span>`
     + (editable ? `<span class="cuenta" data-ronda="${g.num}">puedes cambiarlo ${cuentaAtras(editable)}</span>` : "");
   panelBody.appendChild(label);
   g.partes.forEach(round => {
@@ -817,8 +823,9 @@ function renderPanel(lines, total){
   panelBody.innerHTML = "";
   rounds.forEach(r => { r.pintadaEditable = false; });
 
-  if(rounds.length === 0 && lines.length === 0){
+  if(rounds.length === 0 && lines.length === 0 && !pedidosCamarero().length){
     panelBody.innerHTML = `<div class="cart-empty">TIQUE VACÍO<br>${esc(Aspecto.texto("tique_vacio"))}</div>`;
+    pintarCamarero();
     pintarMesaPedida();
     panelTotal.textContent = money(total);
     return;
@@ -873,6 +880,7 @@ function renderPanel(lines, total){
     panelBody.appendChild(t);
   }
 
+  pintarCamarero();
   pintarMesaPedida();
   panelTotal.textContent = money(total);
 }
@@ -905,16 +913,86 @@ function pintarMesaPedida(){
   caja.className = "mesa-pedida";
   const n = Number(MESA_PEDIDO.pedidos) || 0;
   caja.innerHTML = `<div class="mp-cab"><b>EN TU MESA HOY</b><span>${n === 1 ? "1 pedido" : n + " pedidos"} · de todos los móviles</span></div>`;
-  MESA_PEDIDO.lineas.forEach(l => caja.appendChild(buildCartRow({ qty: Number(l.cantidad), name: l.nombre, price: Number(l.precio) }, "mesa")));
+  const fila = l => buildCartRow({ qty: Number(l.cantidad), name: l.nombre, price: Number(l.precio) }, "mesa");
+  // v34: lo pedido al camarero, aparte y con la campana.
+  if(Array.isArray(MESA_PEDIDO.lineas_camarero) && MESA_PEDIDO.lineas_camarero.length){
+    (MESA_PEDIDO.lineas_moviles || []).forEach(l => caja.appendChild(fila(l)));
+    const sub = document.createElement("div");
+    sub.className = "mp-camarero";
+    sub.textContent = "🛎 Pedido al camarero";
+    caja.appendChild(sub);
+    MESA_PEDIDO.lineas_camarero.forEach(l => caja.appendChild(fila(l)));
+  } else {
+    MESA_PEDIDO.lineas.forEach(l => caja.appendChild(fila(l)));
+  }
   const t = document.createElement("div");
   t.className = "mp-total";
   t.innerHTML = `<span>Total de la mesa</span><span>${money(Number(MESA_PEDIDO.total) || 0)}</span>`;
   caja.appendChild(t);
   panelBody.appendChild(caja);
 }
+/* ---------------- COBRAR POR SEPARADO Y PEDIDOS AL CAMARERO (v34) ----------------
+   Opción del bar cobro_separado. La base dice qué número de móvil es este en
+   la mesa («Móvil 2»: así lo ve el camarero al cobrar) y qué ha pedido la
+   mesa al camarero (desde su panel). Eso sale en el tique con la campana 🛎,
+   aparte, y no suma a «Tu cuenta» porque no se sabe de quién es. */
+let CUENTA = null;
+let firmaCuenta = "";
+let pidiendoCuenta = false;
+async function refrescarCuenta(){
+  if(!MESA || !opcion("cobro_separado") || pidiendoCuenta) return false;
+  pidiendoCuenta = true;
+  try {
+    const r = await datosCarta.cuenta(MESA.id, MESA_CODIGO);
+    const firma = JSON.stringify(r);
+    const cambio = firma !== firmaCuenta;
+    firmaCuenta = firma;
+    CUENTA = r;
+    if(cambio) pintarTextos();
+    return cambio;
+  } catch(e) {
+    return false; // sin cobertura: se queda lo que había
+  } finally { pidiendoCuenta = false; }
+}
+// Pedidos al camarero, juntando las partes de barra y cocina de cada uno.
+function pedidosCamarero(){
+  if(!MESA || !opcion("cobro_separado") || !CUENTA || !Array.isArray(CUENTA.camarero)) return [];
+  const grupos = [];
+  CUENTA.camarero.forEach(p => {
+    const clave = p.parte_de || p.id;
+    let g = grupos.find(x => x.clave === clave);
+    if(!g){ g = { clave, numero: p.numero, partes: [] }; grupos.push(g); }
+    g.partes.push(p);
+  });
+  return grupos;
+}
+function pintarCamarero(){
+  const grupos = pedidosCamarero();
+  if(!grupos.length) return;
+  grupos.forEach(g => {
+    const estado = g.partes.some(p => p.estado === 'enviado') ? 'enviado'
+      : (g.partes.some(p => p.estado === 'en_preparacion') ? 'en_preparacion' : 'servido');
+    const caja = document.createElement("div");
+    caja.className = "pedido-camarero";
+    const est = estado === 'servido' ? "est-servido" : (estado === 'en_preparacion' ? "est-prep" : "est-enviado");
+    caja.innerHTML = `<div class="round-label ${est}"><span>🛎 PEDIDO AL CAMARERO · ${roundLabel({ status: estado })}</span></div>`;
+    let total = 0;
+    g.partes.forEach(p => (p.lineas || []).forEach(l => {
+      if(!Number(l.cantidad)) return;
+      total += Number(l.cantidad) * Number(l.precio);
+      caja.appendChild(buildCartRow({ qty: Number(l.cantidad), name: l.nombre, price: Number(l.precio) }, "camarero"));
+    }));
+    const pie = document.createElement("div");
+    pie.className = "pc-pie";
+    pie.innerHTML = `<span>Lo pidió la mesa al camarero · no suma a tu cuenta</span><span>${money(total)}</span>`;
+    caja.appendChild(pie);
+    panelBody.appendChild(caja);
+  });
+}
 setInterval(async () => {
   if(document.hidden || !panel.classList.contains("show") || editando) return;
-  if(await refrescarMesaPedida()) updateCartBar();
+  const cambios = await Promise.all([refrescarMesaPedida(), refrescarCuenta()]);
+  if(cambios.some(Boolean)) updateCartBar();
 }, 15000);
 
 function buildCartRow(l, mode, round){
@@ -949,8 +1027,8 @@ function buildCartRow(l, mode, round){
 async function openPanel(){
   overlay.classList.add("show"); panel.classList.add("show");
   updateCartBar();
-  const cambios = await Promise.all([refreshRoundStatuses(), refrescarMesaPedida()]);
-  if(cambios[0] || cambios[1]) updateCartBar();
+  const cambios = await Promise.all([refreshRoundStatuses(), refrescarMesaPedida(), refrescarCuenta()]);
+  if(cambios.some(Boolean)) updateCartBar();
 }
 
 // Mientras haya pedidos sin servir, se pregunta a la base cada 6 s por su estado.
@@ -1119,7 +1197,7 @@ async function sendOrder(){
     vaciarCarrito();
     closePanel();
     updateCartBar();
-    refrescarMesaPedida().then(c => { if(c) updateCartBar(); });
+    Promise.all([refrescarMesaPedida(), refrescarCuenta()]).then(c => { if(c.some(Boolean)) updateCartBar(); });
     aviso("PEDIDO ENVIADO", "Pedido " + p.ronda + " enviado (" + MESA.nombre + "). Durante 3 minutos puedes cambiarlo desde «Ver tique».", true);
     return;
   }

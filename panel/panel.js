@@ -612,6 +612,7 @@ async function cargarCuentas(){
   } catch(e) { tratarError(e); }
   finally { cargandoCuentas = false; }
 }
+function nombreGrupo(g){ return g.camarero ? '🛎 Pedidos al camarero' : 'Móvil ' + g.movil; }
 function lineasCuenta(ls, clase){
   return (ls || []).map(l => `
     <div class="linea ${clase || ''}"><span class="cant">${l.cantidad}×</span><span class="nombre">${esc(l.nombre)}</span><span class="puntos"></span><span class="precio">${euros(l.importe)}</span></div>`).join('');
@@ -622,9 +623,27 @@ function pintarCuentas(){
   const cs = estado.cuentas;
   const abiertas = cs.length ? cs.map(c => {
     const total = Number(c.total || 0), pendiente = Number(c.pendiente || 0);
+    // Cobrar por separado (v34): si en la mesa piden varios móviles (o el
+    // camarero), cada uno con su «Cobrar esto»; el botón de abajo cobra todo.
+    const grupos = opcionBar('cobro_separado') && Array.isArray(c.grupos) && c.grupos.length > 1 ? c.grupos : null;
     const boton = total > 0
-      ? `<button class="btn btn-azul" type="button" data-cobrar="${c.mesa}">Cobrada · ${euros(total)}</button>`
+      ? `<button class="btn btn-azul" type="button" data-cobrar="${c.mesa}">${grupos ? 'Cobrar todo' : 'Cobrada'} · ${euros(total)}</button>`
       : `<button class="btn btn-borde" type="button" disabled>Nada servido todavía</button>`;
+    const porPersona = grupos ? `
+        <div class="cuenta-personas">
+          <div class="cuenta-aviso">POR PERSONA</div>
+          ${grupos.map(g => {
+            const t = Number(g.total || 0), pend = Number(g.pendiente || 0);
+            const resumen = (g.lineas || []).concat(g.lineas_pendientes || []).map(l => l.cantidad + '× ' + l.nombre).join(', ');
+            return `<div class="persona">
+              <div class="persona-datos">
+                <div class="persona-nombre">${nombreGrupo(g)}<span>${euros(t)}</span></div>
+                <div class="persona-lineas">${esc(resumen)}${pend ? ` · <i>sin servir ${euros(pend)}</i>` : ''}</div>
+              </div>
+              ${t > 0 ? `<button class="btn btn-borde" type="button" data-cobrar-grupo="${c.mesa}" data-movil="${g.movil}">Cobrar</button>` : `<span class="persona-nada">Nada servido</span>`}
+            </div>`;
+          }).join('')}
+        </div>` : '';
     return `<div class="pedido" id="cuenta-${c.mesa}">
       <div class="tarjeta ${estado.cuentaDestacada === c.mesa ? 'destacada' : ''}">
         <div class="pedido-num">${esc(c.mesa_nombre || 'Mesa ' + c.mesa)}</div>
@@ -637,6 +656,7 @@ function pintarCuentas(){
             ${lineasCuenta(c.lineas_pendientes, 'cero')}
             <div class="cuenta-sub"><span>Pendiente de servir</span><span>${euros(pendiente)}</span></div>
           </div>` : ''}
+        ${porPersona}
         <div class="t-botones">${boton}</div>
       </div>
     </div>`;
@@ -658,8 +678,25 @@ function pintarCuentas(){
 // Cobrar y reabrir piden confirmación en una ventana con el importe
 // (v17, a petición de Carlos: el doble toque no se entendía).
 $('listaCuentas').addEventListener('click', (ev) => {
-  const b = ev.target.closest('button[data-cobrar], button[data-reabrir]');
+  const b = ev.target.closest('button[data-cobrar], button[data-reabrir], button[data-cobrar-grupo]');
   if(!b || b.disabled) return;
+  if(b.dataset.cobrarGrupo){
+    const mesa = Number(b.dataset.cobrarGrupo), movil = Number(b.dataset.movil);
+    const c = estado.cuentas.find(x => x.mesa === mesa);
+    const g = c && (c.grupos || []).find(x => x.movil === movil);
+    if(!g) return;
+    const nombre = c.mesa_nombre || 'Mesa ' + mesa;
+    confirmarAccion('¿Cobrar ' + (g.camarero ? 'los pedidos al camarero' : 'el Móvil ' + movil) + '?',
+      `<p class="confirmar-importe">${euros(g.total)}</p>
+       <p class="texto-suave">${esc(nombre)}. Se cobra solo lo servido de ${g.camarero ? 'lo pedido al camarero' : 'ese móvil'}; el resto de la mesa sigue abierto.</p>`,
+      'Sí, cobrar', async () => {
+        const r = await datosPanel.cobrar(mesa, g.ids || []);
+        toast(nombreGrupo(g).replace('🛎 ', '') + ' · cobrado ' + euros(r && r.total));
+        await cargarCuentas();
+        cargarPedidos();
+      });
+    return;
+  }
   if(b.dataset.cobrar){
     const mesa = Number(b.dataset.cobrar);
     const c = estado.cuentas.find(x => x.mesa === mesa);

@@ -34,6 +34,7 @@ const OPCIONES = [
   { k: 'buscador', t: 'Buscador', d: 'Lupa arriba para buscar un plato en toda la carta.' },
   { k: 'pedido_mesa', t: 'Lo pedido en tu mesa', d: 'En el tique, lo que lleva pedido hoy toda la mesa (de todos los móviles).' },
   { k: 'letra_grande', t: 'Letra grande', d: 'Botón «A+» arriba para ver la carta más grande.' },
+  { k: 'cobro_separado', t: 'Cobrar por separado', d: 'En «Cuentas de mesas», cobrar a cada móvil por su lado; en la carta, lo pagado y lo pedido al camarero (🛎). Necesita «Cuentas de mesas».' },
 ];
 const ROLES = { admin: 'Admin', barra: 'Barra', camarero: 'Camarero' };
 
