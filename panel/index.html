@@ -9,7 +9,7 @@
    con ?v=N (otra dirección, así que llega la nueva). Al publicar una
    versión: subir VERSION_WEB aquí, en carta/ y panel/, los ?v= de los
    archivos y el número de version.json. */
-var VERSION_WEB = 34;
+var VERSION_WEB = 35;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -33,10 +33,10 @@ var VERSION_WEB = 34;
 <link rel="manifest" id="manifiesto" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icono-192.png">
 <link rel="apple-touch-icon" href="icono-180.png">
-<link rel="stylesheet" href="../comun/estilos.css?v=34">
+<link rel="stylesheet" href="../comun/estilos.css?v=35">
 <!-- Colores, fuentes y logo del bar (comun/aspecto.js): se pintan ya con lo
      último que se supo en este aparato (sesión, enlace o último bar). -->
-<script src="../comun/aspecto.js?v=34"></script>
+<script src="../comun/aspecto.js?v=35"></script>
 <script>
 (function(){
   function leer(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
@@ -45,7 +45,7 @@ var VERSION_WEB = 34;
   Aspecto.aplicar(info, { panel: true });
 })();
 </script>
-<link rel="stylesheet" href="panel.css?v=34">
+<link rel="stylesheet" href="panel.css?v=35">
 </head>
 <body>
 
@@ -74,7 +74,7 @@ var VERSION_WEB = 34;
     <button id="lOlvido" class="enlace-olvido" type="button">¿Has olvidado tu contraseña?</button>
     <p class="texto-suave pie-login">Acceso reservado al personal de <span id="lLocal">este bar</span>.</p>
     <p class="texto-suave firma-plataforma"><a id="lLegal" href="../legal/#privacidad" hidden>Privacidad</a><span id="lLegalSep" hidden> · </span><a class="enlace-firma" href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel digital por <b>autonomIA Lab</b></a></p>
-    <p class="version-panel-login">Panel v34</p>
+    <p class="version-panel-login">Panel v35</p>
   </form>
 </section>
 
@@ -257,7 +257,7 @@ var VERSION_WEB = 34;
 
   <!-- Versión y firma al final de la página, como en la carta (v24, a petición de Carlos) -->
   <footer class="pie-panel">
-    <div class="version-panel">Panel v34</div>
+    <div class="version-panel">Panel v35</div>
     <div class="firma-panel"><a href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel digital por <b>autonomIA Lab</b></a></div>
   </footer>
 
@@ -312,7 +312,9 @@ var VERSION_WEB = 34;
 
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="../comun/datos.js?v=34"></script>
-<script src="panel.js?v=34"></script>
+<!-- Login de Supabase (v35): librería oficial, copia dentro de la web -->
+<script src="../comun/supabase.js?v=35"></script>
+<script src="../comun/datos.js?v=35"></script>
+<script src="panel.js?v=35"></script>
 </body>
 </html>
