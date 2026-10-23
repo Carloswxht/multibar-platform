@@ -144,9 +144,19 @@ function leerEnlaceRecuperar(){
 }
 
 async function arrancar(){
+  // Enlace del correo de Supabase (v36): /panel/?bar=…&token_hash=…&type=recovery.
+  const enlace = leerEnlaceSupabase();
+  if(enlace){
+    estado.enlace = enlace; estado.recuperar = null;
+    $('nTitulo').textContent = enlace.bienvenida ? 'ELIGE TU CONTRASEÑA' : 'CONTRASEÑA NUEVA';
+    $('nError').hidden = true;
+    mostrar('vNueva');
+    return;
+  }
   const rec = leerEnlaceRecuperar();
   if(rec !== null){
-    estado.recuperar = rec;
+    estado.recuperar = rec; estado.enlace = null;
+    $('nTitulo').textContent = 'CONTRASEÑA NUEVA';
     mostrar('vNueva');
     if(!rec){ $('nError').textContent = textoError('ENLACE_NO_VALIDO'); $('nError').hidden = false; }
     return;
@@ -255,10 +265,10 @@ $('fOlvido').addEventListener('submit', async (ev) => {
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ $('oError').textContent = 'Escribe bien tu correo.'; $('oError').hidden = false; return; }
   $('oBoton').disabled = true; $('oBoton').textContent = 'Enviando…';
   try {
-    await pedirEnlaceRecuperar(email);
+    await pedirEnlaceSupabase(AUTH_PANEL, email, direccionPanel(BAR_ENLACE));
     $('oPedir').hidden = true; $('oHecho').hidden = false;
   } catch(e) {
-    $('oError').textContent = e.codigo === 'SIN_CONEXION' ? e.message : 'No se ha podido enviar ahora. Inténtalo dentro de un rato o pídesela al encargado.';
+    $('oError').textContent = (e.codigo === 'SIN_CONEXION' || e.codigo === 'DEMASIADOS_INTENTOS') ? e.message : 'No se ha podido enviar ahora. Inténtalo dentro de un rato o pídesela al encargado.';
     $('oError').hidden = false;
   } finally {
     $('oBoton').disabled = false; $('oBoton').textContent = 'Enviarme el enlace';
@@ -269,11 +279,23 @@ $('fNueva').addEventListener('submit', async (ev) => {
   const nueva = $('nNueva').value, rep = $('nRepite').value;
   const err = (t) => { $('nError').textContent = t; $('nError').hidden = false; };
   $('nError').hidden = true;
-  if(!estado.recuperar) return err(textoError('ENLACE_NO_VALIDO'));
+  if(!estado.recuperar && !estado.enlace) return err(textoError('ENLACE_NO_VALIDO'));
   if(nueva.length < 8) return err('La contraseña nueva debe tener al menos 8 caracteres.');
   if(nueva !== rep) return err('Las dos contraseñas no coinciden.');
   $('nBoton').disabled = true; $('nBoton').textContent = 'Guardando…';
   try {
+    if(estado.enlace){
+      const r = await restablecerPanel(estado.enlace, nueva);
+      estado.enlace = null;
+      ['nNueva', 'nRepite'].forEach(id => { $(id).value = ''; });
+      toast('Contraseña guardada');
+      if(r.rol){ entrarConSesion(r); return; }
+      // La cuenta no es de un bar (p. ej. la de plataforma): la contraseña ya vale, se entra a mano.
+      guardarLocal(CLAVE_SESION, null);
+      $('lEmail').value = r.email || ''; $('lPass').value = ''; $('lError').hidden = true;
+      mostrar('vLogin');
+      return;
+    }
     const r = await restablecerPassword(estado.recuperar, nueva);
     estado.recuperar = null;
     ['nNueva', 'nRepite'].forEach(id => { $(id).value = ''; });
@@ -296,7 +318,7 @@ window.addEventListener('hashchange', () => {
   clearInterval(estado.temporizador); cerrarNuevo(); cerrarMenu();
   arrancar();
 });
-function volverDeRecuperar(){ estado.recuperar = null; arrancar(); }
+function volverDeRecuperar(){ estado.recuperar = null; estado.enlace = null; arrancar(); }
 $('oVolver').addEventListener('click', volverDeRecuperar);
 $('nVolver').addEventListener('click', volverDeRecuperar);
 

@@ -97,9 +97,11 @@ function confirmar(titulo, texto, si, rojo){
 }
 
 /* ---------- Navegación ---------- */
+// Enlace del correo de Supabase (v36): /plataforma/?token_hash=…&type=recovery.
+let enlaceCorreo = leerEnlaceSupabase();
 async function irA(){
   const h = location.hash.replace(/^#/, '');
-  if(h.startsWith('recuperar=')){ mostrar('vNueva'); return; }
+  if(enlaceCorreo || h.startsWith('recuperar=')){ mostrar('vNueva'); return; }
   if(!datosPlataforma.sesion()){ mostrar('vEntrar'); return; }
   if(salirSinGuardar && !(await salirSinGuardar())) return;
   let m = h.match(/^bar\/(\d+)$/);
@@ -141,7 +143,7 @@ $('fOlvido').addEventListener('submit', async (ev) => {
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ toast(textoError('EMAIL_NO_VALIDO'), true); return; }
   const b = $('fOlvido').querySelector('button[type=submit]');
   b.disabled = true;
-  try { await datosPlataforma.enlaceContrasena(email); $('oHecho').hidden = false; }
+  try { await datosPlataforma.recuperarPropia(email); $('oHecho').hidden = false; }
   catch(e) { toast(textoError(e.codigo), true); }
   finally { b.disabled = false; }
 });
@@ -156,6 +158,17 @@ $('fNueva').addEventListener('submit', async (ev) => {
   const b = $('fNueva').querySelector('button[type=submit]');
   b.disabled = true;
   try {
+    if(enlaceCorreo){
+      const r = await datosPlataforma.restablecerConEnlace(enlaceCorreo, p1);
+      enlaceCorreo = null;
+      $('nPass').value = $('nPass2').value = '';
+      toast('Contraseña guardada');
+      if(r.supabase){ if(location.hash) location.hash = ''; else irA(); return; }
+      // La cuenta no es de la plataforma (p. ej. de un bar): la contraseña ya vale, se entra donde toque.
+      $('eEmail').value = r.email || '';
+      mostrar('vEntrar');
+      return;
+    }
     await datosPlataforma.restablecer(token, p1);
     $('nPass').value = $('nPass2').value = '';
     history.replaceState(null, '', location.pathname + location.search);
@@ -328,7 +341,7 @@ async function verFicha(id){
     if(!ok) return;
     btn.disabled = true;
     try {
-      await (pendiente ? datosPlataforma.bienvenida(email) : datosPlataforma.enlaceContrasena(email));
+      await (pendiente ? datosPlataforma.bienvenida(email, b.slug) : datosPlataforma.enlaceContrasena(email, b.slug));
       toast('Correo enviado a ' + email);
       // Vuelve a leer la ficha: si ya eligió contraseña, deja de salir «pendiente».
       setTimeout(() => { if(location.hash === '#bar/' + b.id) verFicha(b.id); }, 1500);
@@ -704,7 +717,7 @@ async function verPersona(id, uid){
       const r = await datosPlataforma.usuario(b.id, datos);
       if(r.nuevo){
         let correo = true;
-        try { await datosPlataforma.bienvenida(r.email); } catch(e) { correo = false; }
+        try { await datosPlataforma.bienvenida(r.email, b.slug); } catch(e) { correo = false; }
         toast(correo ? 'Dada de alta. Le hemos mandado el correo de bienvenida.' : 'Dada de alta, pero el correo no ha salido: usa «Mandar enlace».', !correo);
       } else toast('Guardado');
       fichaActual = null;
@@ -769,7 +782,7 @@ $('fAlta').addEventListener('submit', async (ev) => {
   catch(e) { if(e.codigo === 'SESION_CADUCADA') fallo(e); else verError($('aError'), e.codigo); b.disabled = false; return; }
   // El bar ya existe: ahora el correo de bienvenida al dueño.
   let correo = true;
-  try { await datosPlataforma.bienvenida(r.email); } catch(e) { correo = false; }
+  try { await datosPlataforma.bienvenida(r.email, r.slug); } catch(e) { correo = false; }
   b.disabled = false;
   $('fAlta').reset();
   $('aMesas').value = 10;
@@ -790,7 +803,7 @@ function verHecho(r, correo){
       <p>Carta: <b class="mono">carta.autonomialab.es/carta/?bar=${esc(r.slug)}</b></p>
       <p><b>${r.mesas}</b> mesas creadas, cada una con su QR (en su panel → Mesas).</p>
       <p>${correo
-        ? `Correo de bienvenida enviado a <b>${esc(r.email)}</b>: con él elige su contraseña (vale 3 días).`
+        ? `Correo de bienvenida enviado a <b>${esc(r.email)}</b>: con él elige su contraseña. Si le caduca, que toque «¿Has olvidado tu contraseña?» en su panel.`
         : `No se ha podido mandar el correo a <b>${esc(r.email)}</b>. Mándalo desde la ficha del bar → Personal → «Mandar enlace».`}</p>
       <p>Todas las opciones están apagadas: enciéndelas en la ficha.</p>
     </div>
@@ -833,7 +846,7 @@ ponerOjos();
 
 /* ---------- Arranque ---------- */
 (async function(){
-  if(datosPlataforma.sesion() && !location.hash.startsWith('#recuperar=')){
+  if(datosPlataforma.sesion() && !enlaceCorreo && !location.hash.startsWith('#recuperar=')){
     try {
       const yo = await datosPlataforma.yo();
       if(yo && yo.email) $('eEmail').value = yo.email;

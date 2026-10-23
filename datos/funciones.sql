@@ -2290,6 +2290,35 @@ end $$;
 -- quitaron el 18 oct: ver datos/cambios/2026-10-18-quitar-puentes-v18.sql
 -- (el código que los creaba está en 2026-10-18-paso-2-comun-multibar.sql).
 
+-- Correos de las cuentas (23 oct): logo y colores de cada bar para la Edge Function común «enviar-correo»
+-- (la llama public.marca_correo, de AutonomIA-Lab). Ver datos/cambios/2026-10-23-marca-correo-multibar.sql.
+create or replace function public.marca_correo_multibar(p_negocio integer) returns jsonb
+language sql stable security definer set search_path = ''
+as $$
+  with a as (
+    select coalesce(aj.ajustes->'aspecto', '{}'::jsonb) as asp
+      from multibar.ajustes_multibar aj
+      join comun.negocios n on n.id = aj.negocio_id
+     where aj.negocio_id = p_negocio and n.tipo = 'multibar'
+  ), img as (
+    select asp, nullif(btrim(coalesce(nullif(btrim(asp->>'logo'), ''), asp->>'icono', '')), '') as ruta from a
+  )
+  select jsonb_strip_nulls(jsonb_build_object(
+    'logo', case
+              when ruta ~ '^https://[^\s"''<>]+$' then ruta
+              when ruta ~ '^datos/bares/[a-z0-9-]+/[A-Za-z0-9_.-]+\.(png|jpg|jpeg|webp)$'
+                then 'https://carta.autonomialab.es/' || ruta
+            end,
+    'fondo',  coalesce(asp->'colores'->>'fondo', '#FFFFFF'),
+    'texto',  coalesce(asp->'colores'->>'texto', '#1C2028'),
+    'acento', coalesce(asp->'colores'->>'principal', '#22262E')))
+  from img;
+$$;
+comment on function public.marca_correo_multibar(integer) is
+  'Logo y colores de un bar para los correos de las cuentas (la llama public.marca_correo). Solo service_role.';
+revoke all on function public.marca_correo_multibar(integer) from public, anon, authenticated;
+grant execute on function public.marca_correo_multibar(integer) to service_role;
+
 -- Las tablas siguen cerradas a la web (ver esquema.sql): ni lectura ni escritura.
 revoke all on all tables in schema public, comun, multibar, autonomialab from public, anon, authenticated;
 revoke all on schema comun, multibar, autonomialab from public, anon, authenticated;
