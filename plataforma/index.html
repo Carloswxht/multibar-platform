@@ -5,7 +5,7 @@
 <script>
 /* Siempre la última versión (igual que la carta y el panel): si en
    version.json hay una versión más nueva que esta, se recarga sola una vez. */
-var VERSION_WEB = 35;
+var VERSION_WEB = 36;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -23,7 +23,7 @@ var VERSION_WEB = 35;
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
 <title>Plataforma · MultiBar</title>
-<link rel="stylesheet" href="plataforma.css?v=35">
+<link rel="stylesheet" href="plataforma.css?v=36">
 </head>
 <body>
 
@@ -56,7 +56,7 @@ var VERSION_WEB = 35;
   <section class="vista" id="vOlvido" hidden>
     <button class="volver" type="button" data-ir="entrar">← Entrar</button>
     <h1>Contraseña nueva</h1>
-    <p class="sub">Escribe tu correo y te mandamos un enlace para elegir otra. Vale 30 minutos.</p>
+    <p class="sub">Escribe tu correo y te mandamos un enlace para elegir otra. Sirve una vez y caduca al poco tiempo.</p>
     <form id="fOlvido" class="caja form" novalidate>
       <label class="campo"><span>Correo</span><input id="oEmail" type="email" inputmode="email" autocomplete="username" autocapitalize="off" required></label>
       <button class="btn btn-azul" type="submit">Mandar enlace</button>
@@ -133,7 +133,7 @@ var VERSION_WEB = 35;
 </main>
 
 <footer class="pie">
-  <span class="mono">Plataforma v35</span>
+  <span class="mono">Plataforma v36</span>
   <a href="https://www.autonomialab.es" target="_blank" rel="noopener">Plataforma de <b>autonomIA Lab</b></a>
 </footer>
 
@@ -151,10 +151,10 @@ var VERSION_WEB = 35;
 
 <div class="toast" id="toast" role="status" hidden></div>
 
-<script src="../comun/aspecto.js?v=35"></script>
+<script src="../comun/aspecto.js?v=36"></script>
 <!-- Login de Supabase (v35): librería oficial, copia dentro de la web -->
-<script src="../comun/supabase.js?v=35"></script>
-<script src="../comun/datos.js?v=35"></script>
-<script src="plataforma.js?v=35"></script>
+<script src="../comun/supabase.js?v=36"></script>
+<script src="../comun/datos.js?v=36"></script>
+<script src="plataforma.js?v=36"></script>
 </body>
 </html>

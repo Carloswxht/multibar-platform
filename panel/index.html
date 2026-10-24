@@ -9,7 +9,7 @@
    con ?v=N (otra dirección, así que llega la nueva). Al publicar una
    versión: subir VERSION_WEB aquí, en carta/ y panel/, los ?v= de los
    archivos y el número de version.json. */
-var VERSION_WEB = 35;
+var VERSION_WEB = 36;
 (function(){ try {
   fetch('../version.json?t=' + Date.now(), { cache: 'no-store' })
     .then(function(r){ return r.ok ? r.json() : null; })
@@ -33,10 +33,10 @@ var VERSION_WEB = 35;
 <link rel="manifest" id="manifiesto" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icono-192.png">
 <link rel="apple-touch-icon" href="icono-180.png">
-<link rel="stylesheet" href="../comun/estilos.css?v=35">
+<link rel="stylesheet" href="../comun/estilos.css?v=36">
 <!-- Colores, fuentes y logo del bar (comun/aspecto.js): se pintan ya con lo
      último que se supo en este aparato (sesión, enlace o último bar). -->
-<script src="../comun/aspecto.js?v=35"></script>
+<script src="../comun/aspecto.js?v=36"></script>
 <script>
 (function(){
   function leer(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
@@ -45,7 +45,7 @@ var VERSION_WEB = 35;
   Aspecto.aplicar(info, { panel: true });
 })();
 </script>
-<link rel="stylesheet" href="panel.css?v=35">
+<link rel="stylesheet" href="panel.css?v=36">
 </head>
 <body>
 
@@ -74,7 +74,7 @@ var VERSION_WEB = 35;
     <button id="lOlvido" class="enlace-olvido" type="button">¿Has olvidado tu contraseña?</button>
     <p class="texto-suave pie-login">Acceso reservado al personal de <span id="lLocal">este bar</span>.</p>
     <p class="texto-suave firma-plataforma"><a id="lLegal" href="../legal/#privacidad" hidden>Privacidad</a><span id="lLegalSep" hidden> · </span><a class="enlace-firma" href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel digital por <b>autonomIA Lab</b></a></p>
-    <p class="version-panel-login">Panel v35</p>
+    <p class="version-panel-login">Panel v36</p>
   </form>
 </section>
 
@@ -93,16 +93,16 @@ var VERSION_WEB = 35;
     </div>
     <div id="oHecho" hidden>
       <p class="aviso-ok">Si ese correo es de un usuario del panel, en unos minutos te llegará un mensaje con el enlace.</p>
-      <p class="texto-suave">Mira también en <b>Spam</b> o <b>Promociones</b>. El enlace vale <b>30 minutos</b> y solo una vez. Si no llega, pídeselo al encargado.</p>
+      <p class="texto-suave">Mira también en <b>Spam</b> o <b>Promociones</b>. El enlace sirve <b>una sola vez</b> y caduca al poco tiempo. Si no llega, pídeselo al encargado.</p>
     </div>
     <button id="oVolver" class="btn btn-borde btn-ancho" type="button">Volver a entrar</button>
   </form>
 </section>
 
-<!-- ============ CONTRASEÑA NUEVA CON EL ENLACE DEL CORREO (v18) ============ -->
+<!-- ============ CONTRASEÑA NUEVA CON EL ENLACE DEL CORREO (v18; con Supabase desde la v36) ============ -->
 <section id="vNueva" class="vista-caja" hidden>
   <form id="fNueva" class="caja-form" novalidate>
-    <div class="titulo-seccion">CONTRASEÑA NUEVA</div>
+    <div id="nTitulo" class="titulo-seccion">CONTRASEÑA NUEVA</div>
     <p class="texto-suave">Elige una contraseña nueva que solo sepas tú (mínimo 8 caracteres). Al guardarla se cerrará tu sesión en los demás aparatos.</p>
     <label class="campo">
       <span>Contraseña nueva</span>
@@ -257,7 +257,7 @@ var VERSION_WEB = 35;
 
   <!-- Versión y firma al final de la página, como en la carta (v24, a petición de Carlos) -->
   <footer class="pie-panel">
-    <div class="version-panel">Panel v35</div>
+    <div class="version-panel">Panel v36</div>
     <div class="firma-panel"><a href="https://www.autonomialab.es" target="_blank" rel="noopener">Panel digital por <b>autonomIA Lab</b></a></div>
   </footer>
 
@@ -313,8 +313,8 @@ var VERSION_WEB = 35;
 <div id="toast" class="toast" role="status" hidden></div>
 
 <!-- Login de Supabase (v35): librería oficial, copia dentro de la web -->
-<script src="../comun/supabase.js?v=35"></script>
-<script src="../comun/datos.js?v=35"></script>
-<script src="panel.js?v=35"></script>
+<script src="../comun/supabase.js?v=36"></script>
+<script src="../comun/datos.js?v=36"></script>
+<script src="panel.js?v=36"></script>
 </body>
 </html>

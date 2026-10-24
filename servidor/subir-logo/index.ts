@@ -2,7 +2,7 @@
 // MultiBar · Edge Function «subir-logo» (v29)
 // ---------------------------------------------------------------------
 // Corre en el servidor de Supabase (no en la web). El panel de plataforma
-// le manda { token, bar, imagen } con el logo ya reducido en el móvil
+// le manda { bar, imagen } (y su sesión de Supabase) con el logo ya reducido en el móvil
 // («data:image/png;base64,…» o JPEG). Aquí, con la clave secreta que solo
 // existe dentro de Supabase:
 //   1. se pregunta a la base si el token es de la cuenta de plataforma y
@@ -16,7 +16,7 @@
 //
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los pone Supabase solo.
 // Desplegar con verify_jwt = false: la sesión de Supabase (v35) se comprueba
-// aquí mismo (función «quien»), y así sigue valiendo el token de la v34.
+// aquí mismo (función «quien»). El token antiguo de la v34 ya no vale (24 oct).
 // =====================================================================
 
 const CORS = {
@@ -55,10 +55,8 @@ async function rpc(url: string, clave: string, nombre: string, params: unknown) 
 // Login de Supabase (v35): la web manda su sesión de Supabase en la cabecera
 // «Authorization: Bearer …». Se comprueba aquí, con Supabase, de quién es, y
 // se pasa a la base como «uid:<id>» (la base solo lo acepta con la clave
-// secreta). El token antiguo de la web v34 (64 letras y números) sigue
-// valiendo. Nunca se acepta un «uid:» que venga de la web.
-async function quien(req: Request, url: string, clave: string, tokenCuerpo: string): Promise<string> {
-  if (/^[0-9a-f]{64}$/.test(tokenCuerpo)) return tokenCuerpo;
+// secreta). Nunca se acepta un «uid:» que venga de la web.
+async function quien(req: Request, url: string, clave: string): Promise<string> {
   const m = (req.headers.get('authorization') || '').match(/^Bearer\s+(\S+)$/i);
   if (!m || m[1] === clave) return '';
   try {
@@ -85,9 +83,9 @@ export async function atender(req: Request): Promise<Response> {
   const clave = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !clave) { console.error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY'); return fallo('ERROR_SERVIDOR', 500); }
 
-  let datos: { token?: unknown; bar?: unknown; imagen?: unknown };
+  let datos: { bar?: unknown; imagen?: unknown };
   try { datos = await req.json(); } catch (_) { return fallo('FALTAN_DATOS'); }
-  const token = await quien(req, url, clave, typeof datos.token === 'string' ? datos.token : '');
+  const token = await quien(req, url, clave);
   const bar = Number(datos.bar);
   if (!Number.isInteger(bar) || bar <= 0) return fallo('FALTAN_DATOS');
   if (!token) return fallo('SESION_CADUCADA', 401);
