@@ -109,20 +109,8 @@ begin
     end if;
     return s;
   end if;
-  if p_token is null or length(p_token) <> 64 then
-    raise exception 'SESION_CADUCADA';
-  end if;
-  select st.* into s
-    from comun.sesiones se
-    join multibar.usuarios_multibar st on st.id = se.usuario_id
-    join multibar.bares_multibar b on b.id = st.negocio_id
-   where se.token_hash = privado.digest(p_token, 'sha256')
-     and se.expires_at > now()
-     and st.active and b.activo;
-  if not found then
-    raise exception 'SESION_CADUCADA';
-  end if;
-  return s;
+  -- El token antiguo de 64 letras (web v34 y anteriores) ya no vale (24 oct).
+  raise exception 'SESION_CADUCADA';
 end $$;
 
 -- Igual, pero exige uno de los roles indicados.
@@ -1667,7 +1655,7 @@ as $$
 declare u comun.usuarios; v_uid uuid;
 begin
   -- Login de Supabase (v35): igual que privado.staff_de_token. La usan
-  -- también las funciones de plataforma de Gymbro: con token, todo igual.
+  -- también las funciones de plataforma de Gymbro (sin token).
   if coalesce(p_token, '') = '' then
     v_uid := auth.uid();
   elsif p_token like 'uid:%' and (coalesce(auth.role(), '') = 'service_role'
@@ -1688,20 +1676,8 @@ begin
     end if;
     return u;
   end if;
-  if p_token is null or length(p_token) <> 64 then
-    raise exception 'SESION_CADUCADA';
-  end if;
-  select us.* into u
-    from comun.sesiones se
-    join comun.usuarios us on us.id = se.usuario_id
-    join comun.negocios n on n.id = us.negocio_id
-   where se.token_hash = privado.digest(p_token, 'sha256')
-     and se.expires_at > now()
-     and us.active and n.activo and n.tipo = 'plataforma';
-  if not found then
-    raise exception 'SESION_CADUCADA';
-  end if;
-  return u;
+  -- El token antiguo de 64 letras ya no vale (24 oct; ni MultiBar ni Gymbro lo usan).
+  raise exception 'SESION_CADUCADA';
 end $$;
 
 -- Entrar en la plataforma con correo y contraseña (mismas reglas que el panel:
@@ -2232,10 +2208,7 @@ grant execute on function
   public.crear_pedido_multibar(text, integer, text, uuid, jsonb),
   public.editar_pedido_multibar(bigint, uuid, jsonb),
   public.mis_pedidos_multibar(text, uuid),
-  public.personal_entrar(text, text),
   public.personal_yo(text),
-  public.personal_salir(text),
-  public.personal_cambiar_password(text, text, text),
   public.panel_pedidos_multibar(text, timestamptz),
   public.panel_marcar_multibar(text, bigint, text),
   public.panel_modificar_pedido_multibar(text, bigint, jsonb),
@@ -2257,11 +2230,9 @@ grant execute on function
   public.panel_cobrar_multibar(text, integer, jsonb),
   public.panel_cobradas_multibar(text),
   public.panel_reabrir_cuenta_multibar(text, integer, timestamptz),
-  public.personal_restablecer(text, text),
   public.panel_marca_producto_multibar(text, integer, text),
   public.admin_horarios_multibar(text),
   public.admin_guardar_horario_multibar(text, text, jsonb),
-  public.plataforma_entrar(text, text),
   public.plataforma_yo(text),
   public.plataforma_bares_multibar(text),
   public.plataforma_bar_multibar(text, integer),
@@ -2275,13 +2246,11 @@ grant execute on function
   public.carta_cuenta_multibar(text, integer, text, uuid)
 to anon, authenticated;
 
--- Solo el servidor de Supabase (Edge Function con la clave secreta) puede
--- crear enlaces de recuperación. Fuera de Supabase el rol no existe.
+-- Solo el servidor de Supabase (Edge Functions con la clave secreta).
+-- Fuera de Supabase el rol no existe.
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'service_role') then
-    grant execute on function public.recuperar_crear(text) to service_role;
     grant execute on function public.foto_producto_multibar(text, integer, text) to service_role;
-    grant execute on function public.bienvenida_crear(text) to service_role;
     grant execute on function public.plataforma_logo_multibar(text, integer) to service_role;
   end if;
 end $$;
@@ -2318,6 +2287,29 @@ comment on function public.marca_correo_multibar(integer) is
   'Logo y colores de un bar para los correos de las cuentas (la llama public.marca_correo). Solo service_role.';
 revoke all on function public.marca_correo_multibar(integer) from public, anon, authenticated;
 grant execute on function public.marca_correo_multibar(integer) to service_role;
+
+-- Login antiguo (token propio de 64 letras y enlaces de recuperación propios,
+-- web v18 a v35): desde el 24 oct nadie lo usa (todo con Supabase Auth). Las
+-- funciones se quedan, pero nadie puede llamarlas (sin DROP: no se borra nada).
+-- Ver datos/cambios/2026-10-24-quitar-login-viejo.sql.
+revoke all on function public.personal_entrar(text, text) from public, anon, authenticated;
+revoke all on function public.personal_salir(text) from public, anon, authenticated;
+revoke all on function public.personal_cambiar_password(text, text, text) from public, anon, authenticated;
+revoke all on function public.personal_restablecer(text, text) from public, anon, authenticated;
+revoke all on function public.plataforma_entrar(text, text) from public, anon, authenticated;
+revoke all on function public.recuperar_crear(text) from public, anon, authenticated;
+revoke all on function public.bienvenida_crear(text) from public, anon, authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    revoke all on function public.personal_entrar(text, text) from service_role;
+    revoke all on function public.personal_salir(text) from service_role;
+    revoke all on function public.personal_cambiar_password(text, text, text) from service_role;
+    revoke all on function public.personal_restablecer(text, text) from service_role;
+    revoke all on function public.plataforma_entrar(text, text) from service_role;
+    revoke all on function public.recuperar_crear(text) from service_role;
+    revoke all on function public.bienvenida_crear(text) from service_role;
+  end if;
+end $$;
 
 -- Las tablas siguen cerradas a la web (ver esquema.sql): ni lectura ni escritura.
 revoke all on all tables in schema public, comun, multibar, autonomialab from public, anon, authenticated;

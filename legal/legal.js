@@ -7,7 +7,7 @@
    Plantilla: revisar con un asesor antes de usarla con clientes reales.
    ===================================================================== */
 
-const ACTUALIZADO = '16 de octubre de 2026';
+const ACTUALIZADO = '24 de octubre de 2026';
 
 function esc(t){
   return String(t == null ? '' : t)
@@ -85,7 +85,7 @@ function pintar(bar){
   <h3>Si eres del personal del local</h3>
   <ul>
     <li>Guardamos tu nombre, tu correo, tu función (camarero, barra o encargado) y tu contraseña cifrada (nunca en claro), para darte acceso al panel y registrar qué pedidos atiendes.</li>
-    <li>Si pides recuperar tu contraseña, usamos tu correo solo para mandarte el enlace (vale 30 minutos y una sola vez).</li>
+    <li>Si pides recuperar tu contraseña, usamos tu correo solo para mandarte el enlace (sirve una sola vez y caduca al poco tiempo).</li>
     <li>Base legal: tu relación con el local (art. 6.1.b del RGPD). Se conservan mientras tengas acceso al panel.</li>
   </ul>
 

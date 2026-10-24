@@ -7,7 +7,7 @@
    datosPlataforma), que solo aceptan la sesión de la cuenta de plataforma.
    Navegación por la dirección (#):  vacío → bares · #bar/ID → ficha ·
    #bar/ID/aspecto · #bar/ID/datos · #bar/ID/persona(/UID) ·
-   #nuevo → alta · #recuperar=CÓDIGO → elegir contraseña (enlace del correo).
+   #nuevo → alta · ?token_hash=… → elegir contraseña (enlace del correo).
    ===================================================================== */
 
 const $ = (id) => document.getElementById(id);
@@ -101,7 +101,7 @@ function confirmar(titulo, texto, si, rojo){
 let enlaceCorreo = leerEnlaceSupabase();
 async function irA(){
   const h = location.hash.replace(/^#/, '');
-  if(enlaceCorreo || h.startsWith('recuperar=')){ mostrar('vNueva'); return; }
+  if(enlaceCorreo){ mostrar('vNueva'); return; }
   if(!datosPlataforma.sesion()){ mostrar('vEntrar'); return; }
   if(salirSinGuardar && !(await salirSinGuardar())) return;
   let m = h.match(/^bar\/(\d+)$/);
@@ -154,26 +154,18 @@ $('fNueva').addEventListener('submit', async (ev) => {
   const p1 = $('nPass').value, p2 = $('nPass2').value;
   if(p1.length < 8){ verError($('nError'), 'PASSWORD_CORTA'); return; }
   if(p1 !== p2){ $('nError').textContent = 'Las dos contraseñas no coinciden.'; $('nError').hidden = false; return; }
-  const token = location.hash.replace(/^#recuperar=/, '');
+  if(!enlaceCorreo){ verError($('nError'), 'ENLACE_NO_VALIDO'); return; }
   const b = $('fNueva').querySelector('button[type=submit]');
   b.disabled = true;
   try {
-    if(enlaceCorreo){
-      const r = await datosPlataforma.restablecerConEnlace(enlaceCorreo, p1);
-      enlaceCorreo = null;
-      $('nPass').value = $('nPass2').value = '';
-      toast('Contraseña guardada');
-      if(r.supabase){ if(location.hash) location.hash = ''; else irA(); return; }
-      // La cuenta no es de la plataforma (p. ej. de un bar): la contraseña ya vale, se entra donde toque.
-      $('eEmail').value = r.email || '';
-      mostrar('vEntrar');
-      return;
-    }
-    await datosPlataforma.restablecer(token, p1);
+    const r = await datosPlataforma.restablecerConEnlace(enlaceCorreo, p1);
+    enlaceCorreo = null;
     $('nPass').value = $('nPass2').value = '';
-    history.replaceState(null, '', location.pathname + location.search);
+    toast('Contraseña guardada');
+    if(r.supabase){ if(location.hash) location.hash = ''; else irA(); return; }
+    // La cuenta no es de la plataforma (p. ej. de un bar): la contraseña ya vale, se entra donde toque.
+    $('eEmail').value = r.email || '';
     mostrar('vEntrar');
-    toast('Contraseña guardada. Ya puedes entrar.');
   } catch(e) { verError($('nError'), e.codigo); }
   finally { b.disabled = false; }
 });
@@ -846,7 +838,7 @@ ponerOjos();
 
 /* ---------- Arranque ---------- */
 (async function(){
-  if(datosPlataforma.sesion() && !enlaceCorreo && !location.hash.startsWith('#recuperar=')){
+  if(datosPlataforma.sesion() && !enlaceCorreo){
     try {
       const yo = await datosPlataforma.yo();
       if(yo && yo.email) $('eEmail').value = yo.email;
