@@ -1,6 +1,6 @@
 # PLATAFORMA · las bases de todo el plan de autonomIA Lab
 
-> **Versión de las bases: 14 (24 oct 2026).** Al empezar una sesión, comparar este número con la copia maestra (`Carloswxht/AutonomIA-Lab`, archivo `PLATAFORMA.md`); si la de aquí es más antigua, avisar a Carlos y copiar la maestra antes de trabajar. Cada cambio en este archivo sube el número.
+> **Versión de las bases: 15 (25 oct 2026).** Al empezar una sesión, comparar este número con la copia maestra (`Carloswxht/AutonomIA-Lab`, archivo `PLATAFORMA.md`); si la de aquí es más antigua, avisar a Carlos y copiar la maestra antes de trabajar. Cada cambio en este archivo sube el número.
 >
 > **Archivo común a todos los repositorios de autonomIA Lab.** Es idéntico en cada uno (`AutonomIA-Lab`, `multibar-platform`, `gymbro` y los que vengan). La **copia maestra** está en el repositorio `AutonomIA-Lab`. Si cambias algo aquí, cópialo igual en todos los repositorios y avisa a Carlos. Lo propio de cada producto va en el `CLAUDE.md` de su repositorio, no aquí.
 
@@ -65,6 +65,11 @@
 - **Cada producto recupera contraseña con `resetPasswordForEmail(correo, { redirectTo })`**, no con Edge Functions propias. Las Redirect URLs de Supabase admiten `https://autonomialab.es/**` y cada subdominio (`https://carta.autonomialab.es/**`, `https://gymbro.autonomialab.es/**`): **un producto nuevo añade el suyo** (Authentication → URL Configuration).
 - **Límite de correos (24 oct):** Resend configurado también como SMTP propio de Supabase (`smtp.resend.com`, puerto 465, usuario `resend`, clave `supabase-smtp` de Resend) solo para poder subir el límite: **100 correos por hora para todo el proyecto** y 60 s entre correos a la misma persona. Por conexión (un gimnasio o un bar comparten wifi): **100 entradas y altas cada 5 min** y **100 verificaciones de enlaces cada 5 min** (24 oct); refrescos de sesión, 150 cada 5 min. No se suben al máximo: son el freno contra quien prueba contraseñas o manda correos a lo loco (gastaría el cupo de Resend y llevaría los correos de todos a spam). Con el hook encendido el SMTP no se usa (comprobado el 24 oct: los tres correos de prueba de la web, MultiBar y Gymbro pasaron por el hook). Ojo: el plan gratis de Resend tiene su propio tope diario y mensual; revisarlo antes de abrir negocios grandes.
 - Opción futura (apagada por defecto): «correo propio» desde el dominio de un cliente (verificarlo en Resend; quizá plan de pago).
+
+## Decisiones del 24–25 oct (Carlos): quien contrata tiene la web
+- **La cuenta de administrador de la app de un negocio entra en `autonomialab.es` con su mismo correo y contraseña**, como miembro y cliente de su negocio, mientras el negocio esté activo y tenga un producto contratado activo (cuando existan las cuotas, en la Fase 3: «con la cuota al día»). Camareros, socios y demás personal no. No se crea nada: se comprueba cada vez (`privado.dueno_autonomialab`, de `AutonomIA-Lab`); Carlos puede quitar o devolver el acceso desde `/admin` → ficha del negocio.
+- **Cada producto dice quién es su dueño** con `public.es_dueno_<tipo>(usuario)` (solo la llama la base común; pasos y SQL de ejemplo en `docs/duenos-en-la-web.md` de `AutonomIA-Lab`). **Cada producto nuevo debe crear la suya**; sin ella, sus cuentas no entran en la web.
+- Un correo de la app de un negocio nunca es además miembro «normal» de la web (un correo = una cuenta). Para dar la web a otra persona del negocio, con otro correo.
 
 ## Repositorios, dominios y sesiones
 - `Carloswxht/multibar-platform` → MultiBar, `https://carta.autonomialab.es` (GitHub Pages).
